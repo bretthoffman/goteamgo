@@ -19,8 +19,8 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Preserve dark background, change text only */
+html, body {
+  background-color: #000; /* or whatever dark color you were using */
+  color: #8b5cf6;
 }
