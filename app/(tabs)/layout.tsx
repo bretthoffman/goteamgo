@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { label: "Keap", href: "/keap" },
-  { label: "Studio Booking", href: "/studio-booking" },
-  { label: "Team Tasks", href: "/team-tasks" },
+  { label: "Production Staffing", href: "/studio-booking" },
+  { label: "Studio Rental Checklist", href: "/team-tasks" },
 ];
 
 export default function TabsLayout({ children }: { children: React.ReactNode }) {
