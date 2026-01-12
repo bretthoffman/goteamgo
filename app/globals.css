@@ -1,7 +1,4 @@
 @import "tailwindcss";
-@import "@fullcalendar/common/main.css";
-@import "@fullcalendar/daygrid/main.css";
-@import "@fullcalendar/timegrid/main.css";
 
 :root {
   --background: #ffffff;
@@ -14,7 +11,41 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+/* --- FullCalendar minimal styling fallback (since package has no CSS) --- */
+.fc {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+}
 
+.fc .fc-toolbar-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.fc .fc-button {
+  border: 1px solid #ddd;
+  background: white;
+  color: #111;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: #f2f2f2;
+  color: #111;
+}
+
+.fc .fc-daygrid-day-frame {
+  min-height: 90px;
+}
+
+.fc .fc-event {
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
