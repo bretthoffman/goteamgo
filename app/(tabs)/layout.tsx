@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { label: "Keap", href: "/keap" },
-  { label: "Production Staffing", href: "/studio-booking" },
+  { label: "Production Staffing Portal", href: "/studio-booking" },
   { label: "Studio Rental Checklist", href: "/team-tasks" },
 ];
 

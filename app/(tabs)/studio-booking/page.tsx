@@ -18,13 +18,14 @@ import {
 // Simple storage shim:
 // - Uses localStorage when available
 // - Falls back to in-memory store (works even if storage is "disabled")
+const DEFAULT_ADMIN_PASSWORD = "admin123";
 const memoryStore = new Map<string, string>();
 const DEFAULT_REQUESTS: any[] = [];
 const DEFAULT_CREW_MEMBERS: string[] = ["Brian Bethea", "Carson Brunson"];
 const storage = {
   // NOTE: second arg is accepted for backwards-compat (ignored)
   async get(key: string, _json?: boolean) {
-    const FORCE_MEMORY_ONLY = true;
+    const FORCE_MEMORY_ONLY = false;
 
     try {
       if (!FORCE_MEMORY_ONLY && typeof window !== "undefined" && window.localStorage) {
@@ -241,10 +242,30 @@ if (crewRes?.value) {
 
   const handleALogin = async () => {
     try {
-      const r = await storage.get('sage:admin_password');
-      if (r && adminPwd === r.value) { setIsAdminAuth(true); setShowPwdErr(false); setAdminPwd(''); setView('admin'); }
-      else { setShowPwdErr(true); setTimeout(() => setShowPwdErr(false), 3000); }
-    } catch { setShowPwdErr(true); setTimeout(() => setShowPwdErr(false), 3000); }
+      const r = await storage.get("sage:admin_password");
+      const storedPwd = r?.value || DEFAULT_ADMIN_PASSWORD;
+  
+      if (adminPwd === storedPwd) {
+        setIsAdminAuth(true);
+        setShowPwdErr(false);
+        setAdminPwd("");
+        setView("admin");
+      } else {
+        setShowPwdErr(true);
+        setTimeout(() => setShowPwdErr(false), 3000);
+      }
+    } catch {
+      // even if storage fails, still allow default
+      if (adminPwd === DEFAULT_ADMIN_PASSWORD) {
+        setIsAdminAuth(true);
+        setShowPwdErr(false);
+        setAdminPwd("");
+        setView("admin");
+      } else {
+        setShowPwdErr(true);
+        setTimeout(() => setShowPwdErr(false), 3000);
+      }
+    }
   };
 
   const loadEvents = async () => { 
