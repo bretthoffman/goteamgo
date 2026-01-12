@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import KeapCalendar from "@/app/components/KeapCalendar";
 
 type TagRow = { id: number; name: string };
 type ContactRow = { id: number; name: string; email: string };
@@ -125,26 +126,34 @@ export default function Home() {
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Keap Controls</h1>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-        {/* LEFT PANEL */}
-        <section style={{ width: "45%", minWidth: 360, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>Test (if you push this it will email a picture of an owl to Brett)</h2>
+        {/* LEFT COLUMN */}
+<div style={{ width: "45%", minWidth: 360, display: "flex", flexDirection: "column", gap: 16 }}>
+  {/* LEFT PANEL (Test) */}
+  <section style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
+    <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>
+      Test (if you push this it will email a picture of an owl to Brett)
+    </h2>
 
-          <button
-            onClick={handleSendTestEmail}
-            disabled={sending}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #ccc",
-              cursor: sending ? "not-allowed" : "pointer",
-              background: "white",
-            }}
-          >
-            {sending ? "Sending..." : "Send Test Email"}
-          </button>
+    <button
+      onClick={handleSendTestEmail}
+      disabled={sending}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 10,
+        border: "1px solid #ccc",
+        cursor: sending ? "not-allowed" : "pointer",
+        background: "white",
+      }}
+    >
+      {sending ? "Sending..." : "Send Test Email"}
+    </button>
 
-          {sendResult && <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{sendResult}</pre>}
-        </section>
+    {sendResult && <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{sendResult}</pre>}
+  </section>
+
+  {/* CALENDAR (fills the empty lower-left space) */}
+  <KeapCalendar />
+</div>
 
         {/* RIGHT PANEL */}
         <section style={{ width: "55%", minWidth: 420, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
