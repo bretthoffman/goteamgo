@@ -72,6 +72,23 @@ function to24Hour(hour12: number, ampm: "AM" | "PM") {
  * Build an ISO string from LOCAL date parts (year/month/day) and a chosen time (hour/min).
  * This is the key fix for "created day before / wrong time".
  */
+
+
+const EASTERN_TZ = "America/New_York";
+
+function formatEastern(iso: string) {
+  // Displays like: 1/14/2026, 5:00 PM
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: EASTERN_TZ,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+// This function is for locking in eastern time 
 function buildLocalISOFromDateParts(
   date: Date,
   hour12: number,
@@ -79,8 +96,58 @@ function buildLocalISOFromDateParts(
   ampm: "AM" | "PM"
 ) {
   const h24 = to24Hour(hour12, ampm);
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h24, minute, 0, 0);
-  return d.toISOString();
+
+  // Build "wall time" parts we want in Eastern
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1; // 1-12
+  const d = date.getDate();
+
+  // We'll search for the UTC instant that formats to those parts in America/New_York.
+  // This avoids local-time drift and handles DST correctly.
+  const target = {
+    year: String(y),
+    month: String(m).padStart(2, "0"),
+    day: String(d).padStart(2, "0"),
+    hour: String(h24).padStart(2, "0"),
+    minute: String(minute).padStart(2, "0"),
+  };
+
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: EASTERN_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  // Try a small window of UTC candidates and pick the one that matches when viewed in Eastern.
+  // (We try +/- 36 hours around "noon UTC" for safety.)
+  const approxUtc = Date.UTC(y, m - 1, d, 12, 0, 0, 0);
+
+  for (let offsetMin = -36 * 60; offsetMin <= 36 * 60; offsetMin += 15) {
+    const candidate = new Date(approxUtc + offsetMin * 60_000);
+
+    const parts = fmt.formatToParts(candidate).reduce((acc: any, p) => {
+      if (p.type !== "literal") acc[p.type] = p.value;
+      return acc;
+    }, {});
+
+    if (
+      parts.year === target.year &&
+      parts.month === target.month &&
+      parts.day === target.day &&
+      parts.hour === target.hour &&
+      parts.minute === target.minute
+    ) {
+      return candidate.toISOString(); // ✅ correct UTC ISO for the intended Eastern wall time
+    }
+  }
+
+  // Fallback (should be rare)
+  const fallback = new Date(y, m - 1, d, h24, minute, 0, 0);
+  return fallback.toISOString();
 }
 
 function formatLocalPreview(date: Date, hour12: number, minute: number, ampm: "AM" | "PM") {
@@ -315,32 +382,37 @@ export default function KeapCalendar() {
   type SlotUI = {
     mode: "minutesBefore" | "timeOfDay";
     minutesBefore: number; // positive minutes before
-    dayChoice: "sameDay" | "dayBefore";
+    dayChoice: "sameDay" | "dayBefore" | "twoDaysBefore";
     hour: number;
     minute: number;
     ampm: "AM" | "PM";
   };
-
+  
   function slotToUI(slot: DbSlot, eventStartISO: string): SlotUI {
     // default UI based on offset
     const minutes = Math.abs(slot.offset_minutes || 0);
     const defaultMinutesBefore = minutes || 15;
-
-    // if offset is not set or is unusual, default to minutesBefore mode
+  
     const eventStart = new Date(eventStartISO);
     const desired = new Date(eventStart.getTime() + (slot.offset_minutes || 0) * 60000);
-
-    const dayChoice: "sameDay" | "dayBefore" =
-      desired.toDateString() === eventStart.toDateString() ? "sameDay" : "dayBefore";
-
+  
+    // ✅ 3-way dayChoice based on whole-day difference
+    const startDay = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate());
+    const desiredDay = new Date(desired.getFullYear(), desired.getMonth(), desired.getDate());
+    const diffDays = Math.round((startDay.getTime() - desiredDay.getTime()) / 86400000);
+  
+    let dayChoice: SlotUI["dayChoice"] = "sameDay";
+    if (diffDays === 1) dayChoice = "dayBefore";
+    if (diffDays >= 2) dayChoice = "twoDaysBefore";
+  
     const hour24 = desired.getHours();
     const ampm: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
     const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-
-    // if it aligns to a quarter hour and dayChoice is simple, timeOfDay mode is usable
+  
+    // if it aligns to a quarter hour, timeOfDay mode is usable
     const minute = desired.getMinutes();
     const isQuarter = [0, 15, 30, 45].includes(minute);
-
+  
     return {
       mode: isQuarter ? "timeOfDay" : "minutesBefore",
       minutesBefore: defaultMinutesBefore,
@@ -350,7 +422,6 @@ export default function KeapCalendar() {
       ampm,
     };
   }
-
   const [slotUI, setSlotUI] = useState<Record<number, SlotUI>>({});
 
   useEffect(() => {
@@ -374,6 +445,7 @@ export default function KeapCalendar() {
     // timeOfDay
     const desired = new Date(eventStart);
     if (ui.dayChoice === "dayBefore") desired.setDate(desired.getDate() - 1);
+    if (ui.dayChoice === "twoDaysBefore") desired.setDate(desired.getDate() - 2);
 
     const h24 = to24Hour(ui.hour, ui.ampm);
     desired.setHours(h24, ui.minute, 0, 0);
@@ -513,6 +585,14 @@ export default function KeapCalendar() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Create Call Event</div>
+                        {editEvent && (
+              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10 }}>
+                <div>Call Type: {editEvent.call_type}</div>
+                <div>
+                  Start: {formatEastern(editEvent.start_at)} Eastern
+                </div>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
@@ -784,9 +864,6 @@ export default function KeapCalendar() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                         <div style={{ fontSize: 13, fontWeight: 800 }}>
                           Slot {slot.slot_index}
-                          <span style={{ marginLeft: 10, fontWeight: 500, opacity: 0.75 }}>
-                            (offset_minutes = {offsetPreview})
-                          </span>
                         </div>
 
                         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, opacity: 0.9 }}>
@@ -805,70 +882,7 @@ export default function KeapCalendar() {
                         </label>
                       </div>
 
-                      {/* Timing mode */}
-                      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ minWidth: 220 }}>
-                          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Send Rule</div>
-                          <select
-                            value={ui?.mode ?? "minutesBefore"}
-                            onChange={(e) => {
-                              const mode = e.target.value as SlotUI["mode"];
-                              setSlotUI((prev) => ({
-                                ...prev,
-                                [slot.slot_index]: {
-                                  ...(prev[slot.slot_index] ?? {
-                                    mode: "minutesBefore",
-                                    minutesBefore: 15,
-                                    dayChoice: "sameDay",
-                                    hour: 9,
-                                    minute: 0,
-                                    ampm: "AM",
-                                  }),
-                                  mode,
-                                },
-                              }));
-                            }}
-                            style={{
-                              width: "100%",
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.18)",
-                              background: "#0b0b0b",
-                              color: "white",
-                            }}
-                          >
-                            <option value="minutesBefore">Minutes before event</option>
-                            <option value="timeOfDay">Time of day (same day/day before)</option>
-                          </select>
-                        </div>
-
-                        {ui?.mode === "minutesBefore" && (
-                          <div style={{ minWidth: 220 }}>
-                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Minutes Before</div>
-                            <input
-                              type="number"
-                              value={ui?.minutesBefore ?? 15}
-                              onChange={(e) => {
-                                const v = Number(e.target.value);
-                                setSlotUI((prev) => ({
-                                  ...prev,
-                                  [slot.slot_index]: { ...(prev[slot.slot_index] as SlotUI), minutesBefore: v },
-                                }));
-                              }}
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(255,255,255,0.18)",
-                                background: "transparent",
-                                color: "white",
-                              }}
-                            />
-                            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                              Examples: 1440 = 24h before, 360 = 6h before, 15 = 15m before
-                            </div>
-                          </div>
-                        )}
+                      
 
                         {ui?.mode === "timeOfDay" && (
                           <>
@@ -894,6 +908,7 @@ export default function KeapCalendar() {
                               >
                                 <option value="sameDay">Same day</option>
                                 <option value="dayBefore">Day before</option>
+                                <option value="twoDaysBefore">2 Days before</option>
                               </select>
                             </div>
 
