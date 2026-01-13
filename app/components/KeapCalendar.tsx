@@ -5,7 +5,9 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { DateSelectArg, EventClickArg } from "@fullcalendar/core";
+
+// ✅ Types come from core (safe across versions)
+import type { DateSelectArg } from "@fullcalendar/core";
 
 type DbEvent = {
   id: string;
@@ -22,13 +24,22 @@ type CalEvent = {
   end?: string;
 };
 
-async function safeJson(res: Response) {
-  const text = await res.text();
-  if (!text) return { __empty: true };
+async function safeJson(res: Response): Promise<any & { __empty?: boolean; __parseError?: boolean; raw?: string }> {
+  const raw = await res.text();
+
+  if (!raw || !raw.trim()) {
+    return { __empty: true, raw: "" };
+  }
+
+  // If it's HTML (common with 500s or misroutes), surface it
+  if (raw.trim().startsWith("<")) {
+    return { __parseError: true, raw };
+  }
+
   try {
-    return JSON.parse(text);
+    return JSON.parse(raw);
   } catch {
-    return { __parseError: true, raw: text.slice(0, 500) };
+    return { __parseError: true, raw };
   }
 }
 
@@ -111,43 +122,41 @@ export default function KeapCalendar() {
 
   async function createEvent() {
     setBanner("");
+  
+    const title = draftTitle.trim();
+    if (!title) return setBanner("✖ Title is required.");
+    if (!draftCallType) return setBanner("✖ Call type is required.");
+    if (!draftStartISO) return setBanner("✖ Start date/time is missing.");
+  
     try {
-      const payload = {
-        title: draftTitle.trim(),
+      const payload: any = {
+        title,
         call_type: draftCallType,
         start_at: draftStartISO,
-        end_at: null,
+        // end_at: optional — only include if you actually have one
       };
-
+  
       const res = await fetch("/api/keap/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
+  
       const data = await safeJson(res);
-
+  
       if (!res.ok) {
         setBanner(
           `✖ Create failed (HTTP ${res.status}). ${
-            data?.error ? data.error : data?.raw ? data.raw : ""
+            data?.error ?? (data?.raw ? data.raw.slice(0, 300) : "")
           }`
         );
         return;
       }
-
-      if (data.__empty) {
-        setBanner("✖ Create failed: API returned empty response body.");
-        return;
-      }
-
-      if (data.__parseError) {
-        setBanner(`✖ Create failed: API returned non-JSON:\n${data.raw}`);
-        return;
-      }
-
+  
+      if (data.__empty) return setBanner("✖ Create failed: API returned empty response body.");
+      if (data.__parseError) return setBanner(`✖ Create failed: API returned non-JSON:\n${data.raw?.slice(0, 300)}`);
+  
       setOpen(false);
-      // reload to reflect DB state
       await loadRange();
       setBanner("✔ Event created");
     } catch (e: any) {
@@ -155,7 +164,7 @@ export default function KeapCalendar() {
     }
   }
 
-  async function deleteEvent(arg: EventClickArg) {
+  async function deleteEvent(arg: any) {
     const ok = confirm(`Delete "${arg.event.title}"?`);
     if (!ok) return;
 
