@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const slots = [1, 2, 3].map((i) => ({
       event_id: event.id,
       slot_index: i,
-      enabled: true,
+      enabled: false,
       offset_minutes: i === 1 ? -1440 : i === 2 ? -360 : -15,
       subject: "",
       html: "",
