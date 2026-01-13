@@ -60,7 +60,14 @@ const CALL_TYPES = [
 ] as const;
 
 function defaultTitleForCallType(callType: string) {
-  return `${callType} Call`;
+  const trimmed = callType.trim();
+
+  // If it already ends with "call" (case-insensitive), use as-is
+  if (trimmed.toLowerCase().endsWith(" call")) {
+    return trimmed;
+  }
+
+  return `${trimmed} Call`;
 }
 
 function to24Hour(hour12: number, ampm: "AM" | "PM") {
