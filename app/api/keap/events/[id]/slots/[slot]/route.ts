@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
-export async function PATCH(
-  req: Request,
-  ctx: { params: { id: string; slot: string } }
-) {
+type Ctx = { params: Promise<{ id: string; slot: string }> };
+
+export async function PATCH(req: Request, context: Ctx) {
   const sb = supabaseServer();
-  const eventId = ctx.params.id;
-  const slotIndex = Number(ctx.params.slot);
+  const { id: eventId, slot } = await context.params;
+  const slotIndex = Number(slot);
 
   const body = await req.json();
   const { enabled, offset_minutes, subject, html, text_fallback } = body;

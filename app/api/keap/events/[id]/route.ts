@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
-export async function GET(_: Request, ctx: { params: { id: string } }) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_req: Request, context: Ctx) {
   const sb = supabaseServer();
-  const eventId = ctx.params.id;
+  const { id: eventId } = await context.params;
 
   const { data: event, error: e1 } = await sb
     .from("keap_call_events")
@@ -24,11 +26,11 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({ event, slots: slots ?? [] });
 }
 
-export async function PATCH(req: Request, ctx: { params: { id: string } }) {
+export async function PATCH(req: Request, context: Ctx) {
   const sb = supabaseServer();
-  const eventId = ctx.params.id;
-  const body = await req.json();
+  const { id: eventId } = await context.params;
 
+  const body = await req.json();
   const { title, call_type, start_at, end_at, notes } = body;
 
   const { data, error } = await sb
@@ -42,9 +44,9 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   return NextResponse.json({ event: data });
 }
 
-export async function DELETE(_: Request, ctx: { params: { id: string } }) {
+export async function DELETE(_req: Request, context: Ctx) {
   const sb = supabaseServer();
-  const eventId = ctx.params.id;
+  const { id: eventId } = await context.params;
 
   const { error } = await sb.from("keap_call_events").delete().eq("id", eventId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
