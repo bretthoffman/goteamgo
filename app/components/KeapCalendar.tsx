@@ -882,8 +882,7 @@ export default function KeapCalendar() {
                         </label>
                       </div>
 
-                      
-
+                      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                         {ui?.mode === "timeOfDay" && (
                           <>
                             <div style={{ minWidth: 160 }}>
