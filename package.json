@@ -16,6 +16,7 @@
     "@fullcalendar/timegrid": "^6.1.20",
     "@supabase/supabase-js": "^2.90.1",
     "@tiptap/extension-link": "^3.15.3",
+    "@tiptap/extension-text-align": "^3.15.3",
     "@tiptap/react": "^3.15.3",
     "@tiptap/starter-kit": "^3.15.3",
     "lucide-react": "^0.562.0",

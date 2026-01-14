@@ -9,6 +9,7 @@ import type { DateSelectArg } from "@fullcalendar/core";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
 
 
 function TipTapEmailEditor({
@@ -29,6 +30,9 @@ function TipTapEmailEditor({
         openOnClick: false,
         autolink: true,
         linkOnPaste: true,
+      }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
       }),
     ],
     content: initialHtml?.trim() ? initialHtml : "<p></p>",
