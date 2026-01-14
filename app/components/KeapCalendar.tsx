@@ -1150,7 +1150,15 @@ export default function KeapCalendar() {
                   <div style={{ opacity: 0.7 }}>No slots found for this event.</div>
                 )}
 
-                {editSlots.map((slot) => {
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 12,
+                    alignItems: "start",
+                  }}
+                >
+                  {editSlots.map((slot) => {
                   const ui = slotUI[slot.slot_index];
                   const offsetPreview = ui
                     ? computeOffsetMinutesFromUI(ui, editEvent.start_at)
@@ -1163,7 +1171,7 @@ export default function KeapCalendar() {
                         border: "1px solid rgba(255,255,255,0.12)",
                         borderRadius: 12,
                         padding: 12,
-                        marginBottom: 12,
+                        minWidth: 0,
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -1468,10 +1476,11 @@ export default function KeapCalendar() {
                   );
                   })}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
   }
