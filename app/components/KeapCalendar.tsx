@@ -10,8 +10,10 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
+import { createPortal } from "react-dom";
 
-
+const [mounted, setMounted] = useState(false);
+useEffect(() => setMounted(true), []);
 function TipTapEmailEditor({
   initialHtml,
   onSave,
@@ -246,6 +248,7 @@ const CALL_TYPES = [
   "Obvio Q&A",
   "30-30-30 Call",
 ] as const;
+
 
 function defaultTitleForCallType(callType: string) {
   const trimmed = callType.trim();
@@ -1053,55 +1056,56 @@ export default function KeapCalendar() {
       )}
 
       {/* ---------- EDIT MODAL ---------- */}
-      {editOpen && (
-        <div
-        style={{
-          width: "min(1400px, 96vw)",
-          maxWidth: "96vw",
-          height: "85vh",
-          overflow: "hidden",
-          background: "#0b0b0b",
-          border: "1px solid rgba(255,255,255,0.15)",
-          borderRadius: 14,
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-        }}
-          onClick={() => setEditOpen(false)}
-        >
+      {mounted && editOpen &&
+        createPortal(
           <div
             style={{
-              width: 760,
-              maxWidth: "92vw",
-              maxHeight: "90vh",
-              overflow: "auto",
-              background: "#0b0b0b",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 14,
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999999,
               padding: 16,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setEditOpen(false)}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-              <div style={{ fontSize: 16, fontWeight: 800 }}>
-                {editEvent ? editEvent.title : "Event"}
-              </div>
-              <div style={{ flex: 1, overflow: "hidden" }}>
-              <button
-                onClick={() => setEditOpen(false)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  background: "transparent",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-              </div>
-            </div>
+            <div
+              style={{
+                width: "min(1400px, 96vw)",
+                maxWidth: "96vw",
+                height: "85vh",
+                overflow: "hidden",
+                background: "#0b0b0b",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 14,
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+        <div style={{ fontSize: 16, fontWeight: 800 }}>
+          {editEvent ? editEvent.title : "Event"}
+        </div>
+
+        <button
+          onClick={() => setEditOpen(false)}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "transparent",
+            color: "white",
+            cursor: "pointer",
+            flex: "0 0 auto",
+          }}
+        >
+          Close
+        </button>
+      </div>
 
             {editLoading && <div style={{ marginTop: 10, opacity: 0.75 }}>Loading…</div>}
 
@@ -1500,7 +1504,8 @@ export default function KeapCalendar() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
