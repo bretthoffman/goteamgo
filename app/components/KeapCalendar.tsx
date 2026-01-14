@@ -1078,7 +1078,7 @@ export default function KeapCalendar() {
                 width: "min(1400px, 96vw)",
                 maxWidth: "96vw",
                 height: "85vh",
-                overflow: "hidden",
+                overflowY: "auto",
                 background: "#0b0b0b",
                 border: "1px solid rgba(255,255,255,0.15)",
                 borderRadius: 14,
