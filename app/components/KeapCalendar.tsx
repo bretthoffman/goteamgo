@@ -12,8 +12,7 @@ import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import { createPortal } from "react-dom";
 
-const [mounted, setMounted] = useState(false);
-useEffect(() => setMounted(true), []);
+
 function TipTapEmailEditor({
   initialHtml,
   onSave,
@@ -362,6 +361,9 @@ function minutesBetween(a: Date, b: Date) {
 
 // ---------- Component ----------
 export default function KeapCalendar() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState<string>("");
