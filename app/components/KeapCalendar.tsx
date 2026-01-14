@@ -1055,15 +1055,18 @@ export default function KeapCalendar() {
       {/* ---------- EDIT MODAL ---------- */}
       {editOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-          }}
+        style={{
+          width: "min(1400px, 96vw)",
+          maxWidth: "96vw",
+          height: "85vh",
+          overflow: "hidden",
+          background: "#0b0b0b",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 14,
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+        }}
           onClick={() => setEditOpen(false)}
         >
           <div
@@ -1083,6 +1086,7 @@ export default function KeapCalendar() {
               <div style={{ fontSize: 16, fontWeight: 800 }}>
                 {editEvent ? editEvent.title : "Event"}
               </div>
+              <div style={{ flex: 1, overflow: "hidden" }}>
               <button
                 onClick={() => setEditOpen(false)}
                 style={{
@@ -1096,6 +1100,7 @@ export default function KeapCalendar() {
               >
                 Close
               </button>
+              </div>
             </div>
 
             {editLoading && <div style={{ marginTop: 10, opacity: 0.75 }}>Loading…</div>}
@@ -1172,6 +1177,8 @@ export default function KeapCalendar() {
                         borderRadius: 12,
                         padding: 12,
                         minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -1195,10 +1202,18 @@ export default function KeapCalendar() {
                         </label>
                       </div>
 
-                      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          marginTop: 12,
+                          flexWrap: "wrap",
+                          alignItems: "flex-end",
+                        }}
+                      >
                         {ui?.mode === "timeOfDay" && (
                           <>
-                            <div style={{ minWidth: 160 }}>
+                            <div style={{ flex: "1 1 160px", minWidth: 140 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Day</div>
                               <select
                                 value={ui?.dayChoice ?? "sameDay"}
@@ -1224,7 +1239,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ minWidth: 110 }}>
+                            <div style={{ flex: "1 1 110px", minWidth: 90 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Hour</div>
                               <select
                                 value={ui?.hour ?? 9}
@@ -1255,7 +1270,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ minWidth: 120 }}>
+                            <div style={{ flex: "1 1 120px", minWidth: 90 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Minutes</div>
                               <select
                                 value={ui?.minute ?? 0}
@@ -1283,7 +1298,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ width: 90 }}>
+                            <div style={{ flex: "0 0 90px", minWidth: 80 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>AM/PM</div>
                               <select
                                 value={ui?.ampm ?? "AM"}
@@ -1443,7 +1458,13 @@ export default function KeapCalendar() {
                               />
                             </div>
   
-                          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              marginTop: "auto",
+                            }}
+                          >
                             <button
                               onClick={() => saveSlot(slot.slot_index)}
                               style={{
