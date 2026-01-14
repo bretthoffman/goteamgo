@@ -6,7 +6,191 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg } from "@fullcalendar/core";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
 
+
+function TipTapEmailEditor({
+  initialHtml,
+  onSave,
+  onCancel,
+  title,
+}: {
+  initialHtml: string;
+  onSave: (html: string) => void;
+  onCancel: () => void;
+  title: string;
+}) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+      }),
+    ],
+    content: initialHtml?.trim() ? initialHtml : "<p></p>",
+    editorProps: {
+      attributes: {
+        style:
+          "min-height:70vh; outline:none; font-size:16px; line-height:1.55;",
+      },
+    },
+  });
+
+  if (!editor) return null;
+
+  const setLink = () => {
+    const prev = editor.getAttributes("link").href;
+    const url = window.prompt("Link URL (https://...)", prev || "");
+    if (url === null) return; // cancelled
+    if (url === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "white",
+        zIndex: 10000,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Top bar */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 2,
+          background: "white",
+          borderBottom: "1px solid rgba(0,0,0,0.12)",
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 900, color: "#111" }}>
+          {title}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.18)",
+              background: "transparent",
+              color: "#111",
+              cursor: "pointer",
+              fontWeight: 800,
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={() => onSave(editor.getHTML())}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.18)",
+              background: "#111",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+            }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div
+        style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid rgba(0,0,0,0.08)",
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          style={ttBtn(editor.isActive("bold"))}
+        >
+          Bold
+        </button>
+
+        <button
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          style={ttBtn(editor.isActive("italic"))}
+        >
+          Italic
+        </button>
+
+        <button
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          style={ttBtn(editor.isActive("bulletList"))}
+        >
+          Bullets
+        </button>
+
+        <button onClick={setLink} style={ttBtn(editor.isActive("link"))}>
+          Link
+        </button>
+
+        <button
+          onClick={() => editor.chain().focus().insertContent("🔥").run()}
+          style={ttBtn(false)}
+        >
+          Emoji
+        </button>
+      </div>
+
+      {/* White page */}
+      <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto",
+            border: "1px solid rgba(0,0,0,0.12)",
+            borderRadius: 14,
+            padding: 20,
+            background: "white",
+            color: "#111",
+          }}
+        >
+          <EditorContent editor={editor} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ttBtn(active: boolean): React.CSSProperties {
+  return {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.15)",
+    background: active ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.03)",
+    color: "#111",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+  };
+}
 // ---------- Types ----------
 type DbEvent = {
   id: string;
@@ -487,20 +671,13 @@ export default function KeapCalendar() {
       ampm,
     };
   }
-  async function saveSlotFromEditor(slotIndex: number) {
+  async function saveSlotFromEditor(slotIndex: number, html: string) {
     if (!editEvent) return;
-
+  
     const slot = editSlots.find((s) => s.slot_index === slotIndex);
     if (!slot) return;
-
-    const html = editorRef.current?.innerHTML ?? "";
-
-    // Update local immediately so UI reflects changes
-    setEditSlots((prev) =>
-      prev.map((s) => (s.slot_index === slotIndex ? { ...s, html } : s))
-    );
-
-    // Persist to API (same logic as saveSlot, but guaranteed to use this html)
+  
+    // ...now slot is valid everywhere below
     const ui = slotUI[slotIndex];
     const offset_minutes = ui
       ? computeOffsetMinutesFromUI(ui, editEvent.start_at)
@@ -516,13 +693,13 @@ export default function KeapCalendar() {
         html,
         text_fallback: slot.text_fallback ?? "",
       };
-
+  
       const res = await fetch(`/api/keap/events/${editEvent.id}/slots/${slotIndex}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
+  
       const data = await safeJson(res);
 
       if (!res.ok) {
@@ -1214,7 +1391,8 @@ export default function KeapCalendar() {
                                 background: "rgba(0,0,0,0.35)",
                                 opacity: hoveredPreviewSlot === slot.slot_index ? 1 : 0,
                                 transition: "opacity 120ms ease",
-                                pointerEvents: "none",
+                                pointerEvents: "auto",
+                                cursor: "pointer",
                               }}
                             >
                               <div
@@ -1272,171 +1450,15 @@ export default function KeapCalendar() {
                         </div>
                       </div>
                       {htmlEditorOpen && editingSlotIndex === slot.slot_index && (
-                        <div
-                          style={{
-                            position: "fixed",
-                            inset: 0,
-                            background: "white",
-                            zIndex: 10000,
-                            display: "flex",
-                            flexDirection: "column",
+                        <TipTapEmailEditor
+                          title={`Edit Email — Slot ${slot.slot_index}`}
+                          initialHtml={editSlots.find((s) => s.slot_index === slot.slot_index)?.html ?? ""}
+                          onCancel={() => {
+                            setHtmlEditorOpen(false);
+                            setEditingSlotIndex(null);
                           }}
-                        >
-                          {/* Top bar */}
-                          <div
-                            style={{
-                              position: "sticky",
-                              top: 0,
-                              zIndex: 2,
-                              background: "white",
-                              borderBottom: "1px solid rgba(0,0,0,0.12)",
-                              padding: "12px 16px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 12,
-                            }}
-                          >
-                            <div style={{ fontSize: 14, fontWeight: 900, color: "#111" }}>
-                              Edit Email — Slot {slot.slot_index}
-                            </div>
-
-                            <div style={{ display: "flex", gap: 10 }}>
-                              <button
-                                onClick={() => {
-                                  setHtmlEditorOpen(false);
-                                  setEditingSlotIndex(null);
-                                }}
-                                style={{
-                                  padding: "10px 14px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(0,0,0,0.18)",
-                                  background: "transparent",
-                                  color: "#111",
-                                  cursor: "pointer",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                Cancel
-                              </button>
-
-                              <button
-                                onClick={() => saveSlotFromEditor(slot.slot_index)}
-                                style={{
-                                  padding: "10px 14px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(0,0,0,0.18)",
-                                  background: "#111",
-                                  color: "white",
-                                  cursor: "pointer",
-                                  fontWeight: 900,
-                                }}
-                              >
-                                Save
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Toolbar */}
-                          <div
-                            style={{
-                              padding: "10px 16px",
-                              borderBottom: "1px solid rgba(0,0,0,0.08)",
-                              display: "flex",
-                              gap: 8,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {[
-                              ["Bold", "bold"],
-                              ["Italic", "italic"],
-                              ["Underline", "underline"],
-                              ["Bullets", "insertUnorderedList"],
-                            ].map(([label, cmd]) => (
-                              <button
-                                key={cmd}
-                                onClick={() => exec(cmd)}
-                                style={{
-                                  padding: "8px 10px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(0,0,0,0.15)",
-                                  background: "rgba(0,0,0,0.03)",
-                                  color: "#111",
-                                  cursor: "pointer",
-                                  fontSize: 12,
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {label}
-                              </button>
-                            ))}
-
-                            <button
-                              onClick={() => {
-                                const url = prompt("Link URL (https://...)");
-                                if (!url) return;
-                                exec("createLink", url);
-                              }}
-                              style={{
-                                padding: "8px 10px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(0,0,0,0.15)",
-                                background: "rgba(0,0,0,0.03)",
-                                color: "#111",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                fontWeight: 800,
-                              }}
-                            >
-                              Link
-                            </button>
-
-                            <button
-                              onClick={() => exec("insertText", "🔥")}
-                              style={{
-                                padding: "8px 10px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(0,0,0,0.15)",
-                                background: "rgba(0,0,0,0.03)",
-                                color: "#111",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                fontWeight: 800,
-                              }}
-                            >
-                              Emoji
-                            </button>
-                          </div>
-
-                          {/* White page editor */}
-                          <div
-                            style={{
-                              flex: 1,
-                              overflow: "auto",
-                              padding: 24,
-                              background: "white",
-                            }}
-                          >
-                            <div
-                              ref={editorRef}
-                              contentEditable
-                              suppressContentEditableWarning
-                              style={{
-                                maxWidth: 900,
-                                margin: "0 auto",
-                                minHeight: "70vh",
-                                padding: 20,
-                                border: "1px solid rgba(0,0,0,0.12)",
-                                borderRadius: 14,
-                                background: "white",
-                                color: "#111",
-                                fontSize: 16,
-                                lineHeight: 1.55,
-                                outline: "none",
-                              }}
-                            />
-                          </div>
-                        </div>
+                          onSave={(html) => saveSlotFromEditor(slot.slot_index, html)}
+                        />
                       )}
                     </div>
                   );
