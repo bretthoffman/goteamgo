@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { label: "Keap", href: "/keap" },
+  { label: "Call Calendar", href: "/keap" },
   { label: "Production Staffing Portal", href: "/studio-booking" },
   { label: "Studio Rental Checklist", href: "/team-tasks" },
 ];

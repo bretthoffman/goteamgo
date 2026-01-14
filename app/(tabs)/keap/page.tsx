@@ -123,16 +123,13 @@ export default function Home() {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Keap Controls</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Call Calendar for Email Reminder Copy</h1>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         {/* LEFT COLUMN */}
 <div style={{ width: "45%", minWidth: 360, display: "flex", flexDirection: "column", gap: 16 }}>
   {/* LEFT PANEL (Test) */}
   <section style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-    <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>
-      Test (if you push this it will email a picture of an owl to Brett)
-    </h2>
 
     <button
       onClick={handleSendTestEmail}
