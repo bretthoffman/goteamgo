@@ -162,6 +162,26 @@ function TipTapEmailEditor({
         >
           Emoji
         </button>
+        <button
+          onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+          disabled={!editor}
+        >
+          Left
+        </button>
+
+        <button
+          onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+          disabled={!editor}
+        >
+          Center
+        </button>
+
+        <button
+          onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+          disabled={!editor}
+        >
+          Right
+        </button>
       </div>
 
       {/* White page */}
@@ -490,15 +510,34 @@ export default function KeapCalendar() {
     }, 0);
   }
   function wrapEmailHtml(bodyHtml: string) {
-    // Gives the iframe a clean baseline so preview looks consistent
-    return `
-  <!doctype html>
+    return `<!doctype html>
   <html>
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <style>
+        /* Make preview behave like the editor */
+        body { margin:0; padding:16px; font-family: Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#111; }
+  
+        /* Paragraph/blocks spacing */
+        p { margin: 0 0 12px 0; }
+        p:last-child { margin-bottom: 0; }
+  
+        /* Preserve "blank lines" from TipTap: <p><br></p> */
+        p:has(br:only-child) { margin-bottom: 24px; }
+  
+        /* Lists */
+        ul, ol { margin: 0 0 12px 24px; padding: 0; }
+        li { margin: 0 0 6px 0; }
+  
+        /* Headings (if you ever use them) */
+        h1, h2, h3 { margin: 0 0 12px 0; }
+  
+        /* Links */
+        a { color: #2563eb; text-decoration: underline; }
+      </style>
     </head>
-    <body style="margin:0; padding:16px; font-family: Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#111;">
+    <body>
       ${bodyHtml || ""}
     </body>
   </html>`;
