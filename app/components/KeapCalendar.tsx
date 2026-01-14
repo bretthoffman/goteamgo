@@ -105,7 +105,14 @@ function TipTapEmailEditor({
           </button>
 
           <button
-            onClick={() => onSave(editor.getHTML())}
+            onClick={() => {
+              let html = editor.getHTML();
+            
+              // Preserve blank lines (Enter key spacing)
+              html = html.replace(/<p>\s*<\/p>/g, "<p><br></p>");
+            
+              onSave(html);
+            }}
             style={{
               padding: "10px 14px",
               borderRadius: 10,
