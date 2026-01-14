@@ -194,6 +194,14 @@ export default function KeapCalendar() {
   const [editSlots, setEditSlots] = useState<DbSlot[]>([]);
   const [editBanner, setEditBanner] = useState<string>("");
 
+  // HTML editor state
+  const [htmlEditorOpen, setHtmlEditorOpen] = useState(false);
+  const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
+  const editorRef = React.useRef<HTMLDivElement | null>(null);
+  const [htmlDraft, setHtmlDraft] = useState<string>("");
+  const [subjectDraft, setSubjectDraft] = useState<string>("");
+  const [htmlEditorSlotIndex, setHtmlEditorSlotIndex] = useState<number | null>(null);
+
   const calendarEvents = useMemo(() => events, [events]);
 
   async function loadRange(startISO?: string, endISO?: string) {
@@ -269,7 +277,52 @@ export default function KeapCalendar() {
 
     setCreateOpen(true);
   }
-
+  function openHtmlEditor(slotIndex: number) {
+    setEditingSlotIndex(slotIndex);
+    setHtmlEditorOpen(true);
+  
+    // Load current HTML into the editor AFTER modal mounts
+    setTimeout(() => {
+      const slot = editSlots.find((s) => s.slot_index === slotIndex);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = slot?.html?.trim()
+          ? slot!.html
+          : "<p><br/></p>"; // empty starter
+      }
+    }, 0);
+  }
+  function wrapEmailHtml(bodyHtml: string) {
+    // Gives the iframe a clean baseline so preview looks consistent
+    return `
+  <!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+    </head>
+    <body style="margin:0; padding:16px; font-family: Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#111;">
+      ${bodyHtml || ""}
+    </body>
+  </html>`;
+  }
+  
+  function safeDefaultBody() {
+    // Helps when user opens editor for an empty slot
+    return `<p style="margin:0 0 16px 0;">Hey <span style="background:#fff59d; padding:0 4px; border-radius:3px;">~Contact.FirstName~</span>,</p>
+  <p style="margin:0;">(Write your email here)</p>`;
+  }
+  function saveHtmlFromEditor() {
+    if (editingSlotIndex == null) return;
+    const html = editorRef.current?.innerHTML ?? "";
+  
+    setEditSlots((prev) =>
+      prev.map((s) =>
+        s.slot_index === editingSlotIndex ? { ...s, html } : s
+      )
+    );
+  
+    setHtmlEditorOpen(false);
+  }
   // title autoupdate when call type changes (unless user manually edited title)
   function onChangeCallType(next: (typeof CALL_TYPES)[number]) {
     setDraftCallType(next);
@@ -1033,52 +1086,102 @@ export default function KeapCalendar() {
                           </div>
   
                           <div>
-                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>HTML</div>
-                            <textarea
-                              value={slot.html ?? ""}
-                              onChange={(e) =>
-                                setEditSlots((prev) =>
-                                  prev.map((s) => (s.slot_index === slot.slot_index ? { ...s, html: e.target.value } : s))
-                                )
-                              }
-                              rows={6}
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(255,255,255,0.18)",
-                                background: "transparent",
-                                color: "white",
-                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                                fontSize: 12,
-                              }}
-                            />
-                          </div>
-  
-                          <div>
-                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Text fallback</div>
-                            <textarea
-                              value={slot.text_fallback ?? ""}
-                              onChange={(e) =>
-                                setEditSlots((prev) =>
-                                  prev.map((s) =>
-                                    s.slot_index === slot.slot_index ? { ...s, text_fallback: e.target.value } : s
-                                  )
-                                )
-                              }
-                              rows={3}
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(255,255,255,0.18)",
-                                background: "transparent",
-                                color: "white",
-                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                                fontSize: 12,
-                              }}
-                            />
-                          </div>
+                            {/* Email preview (click to edit) */}
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Email preview</div>
+
+                              <div
+                                onClick={() => {
+                                  setHtmlEditorSlotIndex(slot.slot_index);
+                                
+                                  // preload drafts from the slot
+                                  setSubjectDraft(slot.subject ?? "");
+                                  setHtmlDraft(slot.html?.trim() ? slot.html : safeDefaultBody());
+                                
+                                  setHtmlEditorOpen(true);
+                                }}
+                                style={{
+                                  position: "relative",
+                                  border: "1px solid rgba(255,255,255,0.18)",
+                                  borderRadius: 12,
+                                  background: "#0b0b0b",
+                                  padding: 12,
+                                  minHeight: 120,
+                                  cursor: "pointer",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {/* Rendered preview */}
+                                <div style={{ position: "relative" }}>
+                                  {slot.html?.trim() ? (
+                                    <iframe
+                                      title={`preview-slot-${slot.slot_index}`}
+                                      style={{
+                                        width: "100%",
+                                        height: 180,
+                                        border: "0",
+                                        borderRadius: 10,
+                                        background: "white",
+                                      }}
+                                      sandbox=""
+                                      srcDoc={wrapEmailHtml(slot.html)}
+                                    />
+                                  ) : (
+                                    <div style={{ opacity: 0.9, fontSize: 13, lineHeight: 1.4 }}>
+                                      Click to write this email…
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Hover overlay */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: "rgba(0,0,0,0)",
+                                    opacity: 0,
+                                    transition: "opacity 120ms ease",
+                                  }}
+                                  className="email-preview-overlay"
+                                >
+                                  <div
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 999,
+                                      background: "rgba(255,255,255,0.92)",
+                                      color: "#111",
+                                      fontWeight: 800,
+                                      border: "1px solid rgba(0,0,0,0.2)",
+                                    }}
+                                  >
+                                    Edit
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Raw HTML (read-only) */}
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>HTML</div>
+                              <textarea
+                                value={slot.html ?? ""}
+                                readOnly
+                                style={{
+                                  width: "100%",
+                                  minHeight: 110,
+                                  padding: "10px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.18)",
+                                  background: "#0b0b0b",
+                                  color: "white",
+                                  fontFamily: "monospace",
+                                  fontSize: 12,
+                                }}
+                              />
+                            </div>
   
                           <div style={{ display: "flex", justifyContent: "flex-end" }}>
                             <button
@@ -1098,13 +1201,153 @@ export default function KeapCalendar() {
                           </div>
                         </div>
                       </div>
-                    );
+                      {htmlEditorOpen && editingSlotIndex === slot.slot_index && (
+                        <div
+                          style={{
+                            position: "fixed",
+                            inset: 0,
+                            background: "rgba(0,0,0,0.6)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 10000,
+                            padding: 16,
+                          }}
+                          onClick={() => setHtmlEditorOpen(false)}
+                        >
+                          <div
+                            style={{
+                              width: 900,
+                              maxWidth: "100%",
+                              height: "80vh",
+                              background: "#0b0b0b",
+                              border: "1px solid rgba(255,255,255,0.15)",
+                              borderRadius: 14,
+                              padding: 14,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div style={{ fontSize: 16, fontWeight: 900 }}>Edit Email</div>
+                              <button
+                                onClick={() => setHtmlEditorOpen(false)}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.2)",
+                                  background: "transparent",
+                                  color: "white",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Close
+                              </button>
+                            </div>
+
+                            {/* Tiny toolbar */}
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {[
+                                ["Bold", "bold"],
+                                ["Italic", "italic"],
+                                ["Underline", "underline"],
+                                ["Bullets", "insertUnorderedList"],
+                              ].map(([label, cmd]) => (
+                                <button
+                                  key={cmd}
+                                  onClick={() => document.execCommand(cmd)}
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 10,
+                                    border: "1px solid rgba(255,255,255,0.2)",
+                                    background: "rgba(255,255,255,0.06)",
+                                    color: "white",
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+
+                              <button
+                                onClick={() => document.execCommand("insertText", false, "🔥")}
+                                style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.2)",
+                                  background: "rgba(255,255,255,0.06)",
+                                  color: "white",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                }}
+                              >
+                                Emoji
+                              </button>
+                            </div>
+
+                            {/* Editor */}
+                            <div
+                              ref={editorRef}
+                              contentEditable
+                              suppressContentEditableWarning
+                              style={{
+                                flex: 1,
+                                border: "1px solid rgba(255,255,255,0.18)",
+                                borderRadius: 12,
+                                padding: 12,
+                                overflow: "auto",
+                                background: "#050505",
+                                color: "white",
+                                fontSize: 14,
+                                lineHeight: 1.45,
+                              }}
+                            />
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                              <button
+                                onClick={() => setHtmlEditorOpen(false)}
+                                style={{
+                                  padding: "10px 14px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.2)",
+                                  background: "transparent",
+                                  color: "white",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={saveHtmlFromEditor}
+                                style={{
+                                  padding: "10px 14px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.2)",
+                                  background: "white",
+                                  color: "#111",
+                                  cursor: "pointer",
+                                  fontWeight: 900,
+                                }}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
                   })}
                 </div>
               )}
             </div>
           </div>
         )}
-      </div>
-    );
+    </div>
+  );
   }
