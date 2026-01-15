@@ -1505,8 +1505,8 @@ export default function KeapCalendar() {
                                 padding: "10px 12px",
                                 borderRadius: 10,
                                 border: "1px solid rgba(255,255,255,0.18)",
-                                background: "transparent",
-                                color: "white",
+                                background: "white",
+                                color: "#111",
                               }}
                             />
                           </div>
@@ -1526,14 +1526,13 @@ export default function KeapCalendar() {
                                   )
                                 )
                               }
-                              placeholder="This text appears after the subject in inbox previews"
                               style={{
                                 width: "100%",
                                 padding: "10px 12px",
                                 borderRadius: 10,
                                 border: "1px solid rgba(255,255,255,0.18)",
-                                background: "transparent",
-                                color: "white",
+                                background: "white",
+                                color: "#111",
                               }}
                             />
                           </div>
