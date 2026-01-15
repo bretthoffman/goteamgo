@@ -390,6 +390,27 @@ function minutesBetween(a: Date, b: Date) {
 export default function KeapCalendar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+    // Confirmed state (persists locally)
+  const [confirmedById, setConfirmedById] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = localStorage.getItem("keap_confirmed_events");
+      if (raw) setConfirmedById(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      localStorage.setItem("keap_confirmed_events", JSON.stringify(confirmedById));
+    } catch {
+      // ignore
+    }
+  }, [confirmedById, mounted]);
 
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -910,6 +931,33 @@ export default function KeapCalendar() {
           setRangeEndISO(endISO);
           loadRange(startISO, endISO);
         }}
+        eventContent={(arg) => {
+          const id = String(arg.event.id);
+          const confirmed = !!confirmedById[id];
+      
+          return (
+            <div
+              style={{
+                display: "inline-block",
+                padding: "2px 8px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: "18px",
+                background: confirmed ? "rgba(34,197,94,0.35)" : "rgba(250,204,21,0.35)",
+                border: confirmed ? "1px solid rgba(34,197,94,0.55)" : "1px solid rgba(250,204,21,0.55)",
+                color: "#111",
+                maxWidth: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={arg.event.title}
+            >
+              {arg.event.title}
+            </div>
+          );
+        }}
         eventClick={(arg) => {
           // open edit modal instead of delete
           openEdit(arg.event.id);
@@ -1134,26 +1182,78 @@ export default function KeapCalendar() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-        <div style={{ fontSize: 16, fontWeight: 800 }}>
-          {editEvent ? editEvent.title : "Event"}
-        </div>
+                  <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {editEvent ? editEvent.title : "Event"}
+                  </div>
 
-        <button
-          onClick={() => setEditOpen(false)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.2)",
-            background: "transparent",
-            color: "white",
-            cursor: "pointer",
-            flex: "0 0 auto",
-          }}
-        >
-          Close
-        </button>
-      </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "0 0 auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, opacity: 0.9 }}>
+                      <div style={{ fontWeight: 800 }}>Confirmed?</div>
+
+                      <label style={{ position: "relative", width: 50, height: 28, display: "inline-block" }}>
+                        <input
+                          type="checkbox"
+                          checked={editEvent ? !!confirmedById[editEvent.id] : false}
+                          onChange={() => {
+                            if (!editEvent) return;
+                            setConfirmedById((prev) => {
+                              const next = !prev[editEvent.id];
+                              return { ...prev, [editEvent.id]: next };
+                            });
+                          }}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+
+                        <span
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            borderRadius: 999,
+                            background: editEvent && confirmedById[editEvent.id] ? "#22c55e" : "#d1d5db",
+                            transition: "background 150ms ease",
+                            border: "1px solid rgba(0,0,0,0.15)",
+                          }}
+                        />
+
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 3,
+                            left: editEvent && confirmedById[editEvent.id] ? 25 : 3,
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            background: "white",
+                            transition: "left 150ms ease",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      onClick={() => setEditOpen(false)}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        background: "transparent",
+                        color: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
 
             {editLoading && <div style={{ marginTop: 10, opacity: 0.75 }}>Loading…</div>}
 
