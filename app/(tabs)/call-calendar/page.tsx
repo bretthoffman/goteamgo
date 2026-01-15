@@ -153,7 +153,7 @@ export default function Home() {
 </div>
 
         {/* RIGHT PANEL */}
-        <section style={{ width: "55%", minWidth: 420, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
+        {/*<section style={{ width: "55%", minWidth: 420, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700 }}>Search / Query</h2>
 
@@ -201,7 +201,7 @@ export default function Home() {
             </pre>
           )}
 
-          {/* TAG LIST */}
+          
           <div style={{ marginTop: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
               Tags {tags.length ? `(${tags.length})` : ""}
@@ -245,7 +245,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* CONTACT LIST */}
+          
           <div style={{ marginTop: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>
@@ -287,6 +287,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+        */}
       </div>
     </main>
   );
