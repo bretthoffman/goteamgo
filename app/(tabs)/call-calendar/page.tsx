@@ -123,7 +123,7 @@ export default function Home() {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Call Calendar for Email Reminder Copy</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16 }}>Copy Calendar</h1>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         {/* LEFT COLUMN */}
