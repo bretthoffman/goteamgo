@@ -1359,13 +1359,14 @@ export default function KeapCalendar() {
                           display: "flex",
                           gap: 10,
                           marginTop: 12,
-                          flexWrap: "wrap",
+                          flexWrap: "nowrap",
                           alignItems: "flex-end",
+                          width: "100%",
                         }}
                       >
                         {ui?.mode === "timeOfDay" && (
                           <>
-                            <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+                            <div style={{ flex: "0 0 160px" }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Day</div>
                               <select
                                 value={ui?.dayChoice ?? "sameDay"}
@@ -1383,6 +1384,7 @@ export default function KeapCalendar() {
                                   border: "1px solid rgba(255,255,255,0.18)",
                                   background: "#0b0b0b",
                                   color: "white",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
                                 <option value="sameDay">Same day</option>
@@ -1391,7 +1393,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ flex: "1 1 110px", minWidth: 90 }}>
+                            <div style={{ flex: "0 0 80px" }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Hour</div>
                               <select
                                 value={ui?.hour ?? 9}
@@ -1422,7 +1424,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ flex: "1 1 120px", minWidth: 90 }}>
+                            <div style={{ flex: "0 0 95px" }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Minutes</div>
                               <select
                                 value={ui?.minute ?? 0}
@@ -1450,7 +1452,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ flex: "0 0 auto", minWidth: 80 }}>
+                            <div style={{ flex: "0 0 90px" }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>AM/PM</div>
                               <select
                                 value={ui?.ampm ?? "AM"}
