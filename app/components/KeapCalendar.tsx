@@ -1593,7 +1593,7 @@ export default function KeapCalendar() {
                           </div>
                         </div>
 
-                            {/* Raw HTML (read-only) */}
+                            {/* Raw HTML (read-only) 
                             <div style={{ marginTop: 12 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>HTML</div>
                               <textarea
@@ -1611,7 +1611,7 @@ export default function KeapCalendar() {
                                   fontSize: 12,
                                 }}
                               />
-                            </div>
+                            </div> */}
   
                             <div
                             style={{
