@@ -1042,7 +1042,7 @@ export default function KeapCalendar() {
               </div>
 
               {/* Time picker */}
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "nowrap", alignItems: "flex-end" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Hour</div>
                   <select
@@ -1450,7 +1450,7 @@ export default function KeapCalendar() {
                               </select>
                             </div>
 
-                            <div style={{ flex: "0 0 90px", minWidth: 80 }}>
+                            <div style={{ flex: "0 0 auto", minWidth: 80 }}>
                               <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>AM/PM</div>
                               <select
                                 value={ui?.ampm ?? "AM"}
@@ -1471,6 +1471,7 @@ export default function KeapCalendar() {
                                   border: "1px solid rgba(255,255,255,0.18)",
                                   background: "#0b0b0b",
                                   color: "white",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
                                 <option value="AM">AM</option>
