@@ -224,12 +224,17 @@ function ttBtn(active: boolean): React.CSSProperties {
   };
 }
 // ---------- Types ----------
+
 type DbEvent = {
   id: string;
   title: string;
   call_type: string;
   start_at: string;
   end_at: string | null;
+
+  // Google Doc link (optional until created)
+  doc_id?: string | null;
+  doc_url?: string | null;
 };
 
 type DbSlot = {
@@ -266,6 +271,8 @@ async function safeJson(
     return { __parseError: true, raw };
   }
 }
+const [createDocBusy, setCreateDocBusy] = useState(false);
+
 
 const CALL_TYPES = [
   "Ask Us Anything",
@@ -393,6 +400,7 @@ export default function KeapCalendar() {
   useEffect(() => setMounted(true), []);
     // Confirmed state (persists locally)
   const [confirmedById, setConfirmedById] = useState<Record<string, boolean>>({});
+  
 
   useEffect(() => {
     if (!mounted) return;
@@ -436,6 +444,8 @@ export default function KeapCalendar() {
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editEvent, setEditEvent] = useState<DbEvent | null>(null);
+  const hasDoc = !!(editEvent?.doc_id || editEvent?.doc_url);
+  const [createDocBusy, setCreateDocBusy] = useState(false);
   const [editSlots, setEditSlots] = useState<DbSlot[]>([]);
   const [editBanner, setEditBanner] = useState<string>("");
 
@@ -450,6 +460,44 @@ export default function KeapCalendar() {
   const [hoveredPreviewSlot, setHoveredPreviewSlot] = useState<number | null>(null);
 
   const calendarEvents = useMemo(() => events, [events]);
+  async function createGoogleDocForEvent() {
+    if (!editEvent) return;
+    const ev = editEvent; // <-- this is the key (locks in non-null)
+  
+    if (ev.doc_id || ev.doc_url) return; // already created
+    if (createDocBusy) return; // prevent double click
+  
+    setCreateDocBusy(true);
+    setEditBanner("");
+  
+    try {
+      const res = await fetch(`/api/keap/events/${ev.id}/create-doc`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          call_type: ev.call_type,
+          start_at: ev.start_at,
+          title: ev.title,
+        }),
+      });
+  
+      const data = await safeJson(res);
+  
+      if (!res.ok) {
+        setEditBanner(`✖ Create Doc failed (HTTP ${res.status}). ${data?.error ?? ""}`);
+        return;
+      }
+  
+      const doc_id = data?.doc_id ?? data?.event?.doc_id ?? null;
+      const doc_url = data?.doc_url ?? data?.event?.doc_url ?? null;
+  
+      setEditEvent((prev) => (prev ? { ...prev, doc_id, doc_url } : prev));
+    } catch (e: any) {
+      setEditBanner(`✖ Create Doc failed. ${e?.message ?? String(e)}`);
+    } finally {
+      setCreateDocBusy(false);
+    }
+  }
 
   async function loadRange(startISO?: string, endISO?: string) {
     setLoading(true);
@@ -1198,6 +1246,24 @@ export default function KeapCalendar() {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "0 0 auto" }}>
+                  <button
+                    disabled={hasDoc || createDocBusy}
+                    onClick={() => {
+                      if (!editEvent) return;
+                      createGoogleDocForEvent();
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: hasDoc || createDocBusy ? "transparent" : "white",
+                      color: hasDoc || createDocBusy ? "rgba(255,255,255,0.6)" : "#111",
+                      cursor: hasDoc || createDocBusy ? "default" : "pointer",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {hasDoc ? "Doc Created" : "Create Doc"}
+                  </button>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, opacity: 0.9 }}>
                       <div style={{ fontWeight: 800 }}>Confirmed?</div>
 
