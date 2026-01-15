@@ -239,6 +239,7 @@ type DbSlot = {
   enabled: boolean;
   offset_minutes: number; // negative = before event
   subject: string;
+  preview_line: string;
   html: string;
   text_fallback: string;
 };
@@ -766,6 +767,7 @@ export default function KeapCalendar() {
         enabled: slot.enabled,
         offset_minutes,
         subject: slot.subject ?? "",
+        preview_line: slot.preview_line ?? "",
         html,
         text_fallback: slot.text_fallback ?? "",
       };
@@ -845,6 +847,7 @@ export default function KeapCalendar() {
         enabled: slot.enabled,
         offset_minutes,
         subject: slot.subject ?? "",
+        preview_line: slot.preview_line ?? "",
         html: slot.html ?? "",
         text_fallback: slot.text_fallback ?? "",
       };
@@ -1497,6 +1500,33 @@ export default function KeapCalendar() {
                                   )
                                 )
                               }
+                              style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(255,255,255,0.18)",
+                                background: "transparent",
+                                color: "white",
+                              }}
+                            />
+                          </div>
+                          {/* Preview line */}
+                          <div>
+                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+                              Preview line
+                            </div>
+                            <input
+                              value={slot.preview_line ?? ""}
+                              onChange={(e) =>
+                                setEditSlots((prev) =>
+                                  prev.map((s) =>
+                                    s.slot_index === slot.slot_index
+                                      ? { ...s, preview_line: e.target.value }
+                                      : s
+                                  )
+                                )
+                              }
+                              placeholder="This text appears after the subject in inbox previews"
                               style={{
                                 width: "100%",
                                 padding: "10px 12px",
