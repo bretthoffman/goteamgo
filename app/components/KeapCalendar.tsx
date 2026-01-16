@@ -1205,29 +1205,47 @@ export default function KeapCalendar() {
                               <div
                                 onMouseEnter={() => setHoveredPreviewSlot(slot.slot_index)}
                                 onMouseLeave={() => setHoveredPreviewSlot(null)}
-                                onClick={() => window.open(slot.doc_url!, "_blank")}
+                                onClick={() => window.open(slot.doc_url!, "_blank", "noopener,noreferrer")}
                                 style={{
                                   position: "relative",
                                   height: 180,
                                   borderRadius: 12,
                                   overflow: "hidden",
                                   cursor: "pointer",
-                                  background: "white",
-                                  border: "1px solid rgba(0,0,0,0.18)",
+                                  background: "#0b0b0b",
+                                  border: "1px solid rgba(255,255,255,0.18)",
+                                  padding: 12,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "space-between",
                                 }}
+                                title="Open Google Doc"
                               >
-                                <iframe
-                                  title={`doc-preview-${editEvent?.id ?? "event"}-${slot.slot_index}`}
-                                  src={`https://docs.google.com/document/d/${slot.doc_id}/preview`}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    border: 0,
-                                    display: "block",
-                                    background: "white",
-                                  }}
-                                />
+                                <div>
+                                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+                                    Google Doc linked
+                                  </div>
 
+                                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+                                    Open Doc →
+                                  </div>
+
+                                  <div style={{ fontSize: 12, opacity: 0.8, wordBreak: "break-all" }}>
+                                    {slot.doc_url}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: 12,
+                                    opacity: 0.7,
+                                    marginTop: 10,
+                                  }}
+                                >
+                                  Click to open (you can’t preview Google Docs inside the app)
+                                </div>
+
+                                {/* Hover overlay like your old "Edit" */}
                                 <div
                                   style={{
                                     position: "absolute",
@@ -1251,7 +1269,7 @@ export default function KeapCalendar() {
                                       border: "1px solid rgba(0,0,0,0.2)",
                                     }}
                                   >
-                                    Edit
+                                    Open
                                   </div>
                                 </div>
                               </div>

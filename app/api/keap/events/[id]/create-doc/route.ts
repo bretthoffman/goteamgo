@@ -44,38 +44,49 @@ export async function POST(req: Request, context: Ctx) {
     // Already created -> return as-is
     return NextResponse.json({ ok: true, event, slot });
   }
+
   // 3) Call Apps Script “copy template doc” endpoint
   const scriptUrl = process.env.GDOC_COPY_WEBAPP_URL;
   const secret = process.env.GDOC_COPY_SECRET;
 
   if (!scriptUrl) {
-    return NextResponse.json({ ok: false, error: "Missing GDOC_COPY_WEBAPP_URL env var" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Missing GDOC_COPY_WEBAPP_URL env var" },
+      { status: 500 }
+    );
   }
   if (!secret) {
-    return NextResponse.json({ ok: false, error: "Missing GDOC_COPY_SECRET env var" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Missing GDOC_COPY_SECRET env var" },
+      { status: 500 }
+    );
   }
 
-  // IMPORTANT: your Apps Script now authenticates via body.secret, not query params
-  const payload = {
+  // 3) Call Apps Script (GET + payload=base64url(JSON)) to avoid POST->GET redirect issues
+  const payloadObj = {
     secret,
     event_id: eventId,
     slot_index,
-    reminder_key, // optional but recommended
+    reminder_key,
     call_type: event.call_type,
     start_at: event.start_at,
     title: event.title,
   };
 
+  const json = JSON.stringify(payloadObj);
+  const b64 = Buffer.from(json, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+  const url = `${scriptUrl}?payload=${encodeURIComponent(b64)}`;
+
   let doc_id: string | null = null;
   let doc_url: string | null = null;
 
   try {
-    const r = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
+    const r = await fetch(url, { method: "GET" });
     const data = await r.json().catch(() => null);
 
     if (!r.ok || !data?.ok) {
