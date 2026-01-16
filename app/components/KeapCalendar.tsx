@@ -6,223 +6,10 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg } from "@fullcalendar/core";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import TextAlign from "@tiptap/extension-text-align";
 import { createPortal } from "react-dom";
 
 
-function TipTapEmailEditor({
-  initialHtml,
-  onSave,
-  onCancel,
-  title,
-}: {
-  initialHtml: string;
-  onSave: (html: string) => void;
-  onCancel: () => void;
-  title: string;
-}) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        linkOnPaste: true,
-      }),
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
-    ],
-    content: initialHtml?.trim() ? initialHtml : "<p></p>",
-    editorProps: {
-      attributes: {
-        style:
-          "min-height:70vh; outline:none; font-size:16px; line-height:1.55;",
-      },
-    },
-  });
 
-  if (!editor) return null;
-
-  const setLink = () => {
-    const prev = editor.getAttributes("link").href;
-    const url = window.prompt("Link URL (https://...)", prev || "");
-    if (url === null) return; // cancelled
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  };
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "white",
-        zIndex: 10000,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Top bar */}
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 2,
-          background: "white",
-          borderBottom: "1px solid rgba(0,0,0,0.12)",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 900, color: "#111" }}>
-          {title}
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.18)",
-              background: "transparent",
-              color: "#111",
-              cursor: "pointer",
-              fontWeight: 800,
-            }}
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={() => {
-              let html = editor.getHTML();
-            
-              // Preserve blank lines (Enter key spacing)
-              html = html.replace(/<p>\s*<\/p>/g, "<p><br></p>");
-            
-              onSave(html);
-            }}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.18)",
-              background: "#111",
-              color: "white",
-              cursor: "pointer",
-              fontWeight: 900,
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div
-        style={{
-          padding: "10px 16px",
-          borderBottom: "1px solid rgba(0,0,0,0.08)",
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          style={ttBtn(editor.isActive("bold"))}
-        >
-          Bold
-        </button>
-
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          style={ttBtn(editor.isActive("italic"))}
-        >
-          Italic
-        </button>
-
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          style={ttBtn(editor.isActive("bulletList"))}
-        >
-          Bullets
-        </button>
-
-        <button onClick={setLink} style={ttBtn(editor.isActive("link"))}>
-          Link
-        </button>
-
-        <button
-          onClick={() => editor.chain().focus().insertContent("🔥").run()}
-          style={ttBtn(false)}
-        >
-          Emoji
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().setTextAlign("left").run()}
-          disabled={!editor}
-        >
-          Left
-        </button>
-
-        <button
-          onClick={() => editor?.chain().focus().setTextAlign("center").run()}
-          disabled={!editor}
-        >
-          Center
-        </button>
-
-        <button
-          onClick={() => editor?.chain().focus().setTextAlign("right").run()}
-          disabled={!editor}
-        >
-          Right
-        </button>
-      </div>
-
-      {/* White page */}
-      <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            border: "1px solid rgba(0,0,0,0.12)",
-            borderRadius: 14,
-            padding: 20,
-            background: "white",
-            color: "#111",
-          }}
-        >
-          <EditorContent editor={editor} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ttBtn(active: boolean): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.15)",
-    background: active ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.03)",
-    color: "#111",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 800,
-  };
-}
 // ---------- Types ----------
 
 type DbEvent = {
@@ -247,6 +34,9 @@ type DbSlot = {
   preview_line: string;
   html: string;
   text_fallback: string;
+  doc_id?: string | null;
+  doc_url?: string | null;
+  reminder_key?: string | null;
 };
 
 type CalEvent = {
@@ -271,7 +61,6 @@ async function safeJson(
     return { __parseError: true, raw };
   }
 }
-const [createDocBusy, setCreateDocBusy] = useState(false);
 
 
 const CALL_TYPES = [
@@ -400,6 +189,75 @@ export default function KeapCalendar() {
   useEffect(() => setMounted(true), []);
     // Confirmed state (persists locally)
   const [confirmedById, setConfirmedById] = useState<Record<string, boolean>>({});
+  function getEasternYMD(iso: string) {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+  
+    const year = Number(parts.find((p) => p.type === "year")?.value);
+    const month = Number(parts.find((p) => p.type === "month")?.value);
+    const day = Number(parts.find((p) => p.type === "day")?.value);
+  
+    return { year, month, day };
+  }
+  
+  function addDaysUTC(ymd: { year: number; month: number; day: number }, deltaDays: number) {
+    const base = new Date(Date.UTC(ymd.year, ymd.month - 1, ymd.day));
+    base.setUTCDate(base.getUTCDate() + deltaDays);
+    return { year: base.getUTCFullYear(), month: base.getUTCMonth() + 1, day: base.getUTCDate() };
+  }
+  
+  function offsetMinutesForPreset(
+    preset: "dayBefore" | "morningOf" | "min15",
+    eventStartISO: string
+  ) {
+    const eventStart = new Date(eventStartISO);
+  
+    // 15 minutes before start is truly relative
+    if (preset === "min15") return -15;
+  
+    // For "Day Before" and "Morning of" we’ll use a fixed Eastern time-of-day:
+    // - Day Before 11:00 AM ET (matches what you were doing earlier)
+    // - Morning of 9:00 AM ET
+    const ymd0 = getEasternYMD(eventStartISO);
+  
+    const targetYMD = preset === "dayBefore" ? addDaysUTC(ymd0, -1) : ymd0;
+  
+    const hour24 = preset === "dayBefore" ? 11 : 9;
+    const minute = 0;
+
+    // Build a Date object first
+    const targetDate = new Date(
+      targetYMD.year,
+      targetYMD.month - 1, // JS months are 0-based
+      targetYMD.day,
+      hour24,
+      minute,
+      0,
+      0
+    );
+
+    // Now this is a REAL Date, so getTime() works
+    return Math.round((targetDate.getTime() - eventStart.getTime()) / 60000);
+  }
+  
+  function inferSendPreset(offsetMinutes: number, eventStartISO: string): "dayBefore" | "morningOf" | "min15" {
+    const a = offsetMinutesForPreset("dayBefore", eventStartISO);
+    const b = offsetMinutesForPreset("morningOf", eventStartISO);
+    const c = -15;
+  
+    if (offsetMinutes === c) return "min15";
+    if (offsetMinutes === b) return "morningOf";
+    if (offsetMinutes === a) return "dayBefore";
+  
+    // fallback so the dropdown always has something selected
+    // (you can change this to whatever default you want)
+    return "dayBefore";
+  }
   
 
   useEffect(() => {
@@ -572,71 +430,7 @@ export default function KeapCalendar() {
 
     setCreateOpen(true);
   }
-  function openHtmlEditor(slotIndex: number) {
-    setEditingSlotIndex(slotIndex);
-    setHtmlEditorOpen(true);
   
-    // Load current HTML into the editor AFTER modal mounts
-    setTimeout(() => {
-      const slot = editSlots.find((s) => s.slot_index === slotIndex);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = slot?.html?.trim()
-          ? slot!.html
-          : "<p><br/></p>"; // empty starter
-      }
-    }, 0);
-  }
-  function wrapEmailHtml(bodyHtml: string) {
-    return `<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <style>
-        /* Make preview behave like the editor */
-        body { margin:0; padding:16px; font-family: Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#111; }
-  
-        /* Paragraph/blocks spacing */
-        p { margin: 0 0 12px 0; }
-        p:last-child { margin-bottom: 0; }
-  
-        /* Preserve "blank lines" from TipTap: <p><br></p> */
-        p:has(br:only-child) { margin-bottom: 24px; }
-  
-        /* Lists */
-        ul, ol { margin: 0 0 12px 24px; padding: 0; }
-        li { margin: 0 0 6px 0; }
-  
-        /* Headings (if you ever use them) */
-        h1, h2, h3 { margin: 0 0 12px 0; }
-  
-        /* Links */
-        a { color: #2563eb; text-decoration: underline; }
-      </style>
-    </head>
-    <body>
-      ${bodyHtml || ""}
-    </body>
-  </html>`;
-  }
-  
-  function safeDefaultBody() {
-    // Helps when user opens editor for an empty slot
-    return `<p style="margin:0 0 16px 0;">Hey <span style="background:#fff59d; padding:0 4px; border-radius:3px;">~Contact.FirstName~</span>,</p>
-  <p style="margin:0;">(Write your email here)</p>`;
-  }
-  function saveHtmlFromEditor() {
-    if (editingSlotIndex == null) return;
-    const html = editorRef.current?.innerHTML ?? "";
-  
-    setEditSlots((prev) =>
-      prev.map((s) =>
-        s.slot_index === editingSlotIndex ? { ...s, html } : s
-      )
-    );
-  
-    setHtmlEditorOpen(false);
-  }
   // title autoupdate when call type changes (unless user manually edited title)
   function onChangeCallType(next: (typeof CALL_TYPES)[number]) {
     setDraftCallType(next);
@@ -1092,75 +886,6 @@ export default function KeapCalendar() {
                 />
               </div>
 
-              {/* Time picker */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "nowrap", alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Hour</div>
-                  <select
-                    value={draftHour}
-                    onChange={(e) => setDraftHour(Number(e.target.value))}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      background: "#0b0b0b",
-                      color: "white",
-                    }}
-                  >
-                    {Array.from({ length: 12 }).map((_, i) => {
-                      const v = i + 1;
-                      return (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Minutes</div>
-                  <select
-                    value={draftMinute}
-                    onChange={(e) => setDraftMinute(Number(e.target.value))}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      background: "#0b0b0b",
-                      color: "white",
-                    }}
-                  >
-                    {[0, 15, 30, 45].map((m) => (
-                      <option key={m} value={m}>
-                        {String(m).padStart(2, "0")}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ width: 90 }}>
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>AM/PM</div>
-                  <select
-                    value={draftAmPm}
-                    onChange={(e) => setDraftAmPm(e.target.value as any)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      background: "#0b0b0b",
-                      color: "white",
-                    }}
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-              </div>
-
               <div style={{ fontSize: 12, opacity: 0.75 }}>
                 Date: {draftDate ? draftDate.toLocaleDateString() : "(missing)"} <br />
                 Start preview:{" "}
@@ -1385,10 +1110,14 @@ export default function KeapCalendar() {
                   }}
                 >
                   {editSlots.map((slot) => {
-                  const ui = slotUI[slot.slot_index];
-                  const offsetPreview = ui
-                    ? computeOffsetMinutesFromUI(ui, editEvent.start_at)
-                    : slot.offset_minutes;
+                  const selected = (() => {
+                    // Map your offsets to the 3 options
+                    if (slot.offset_minutes === -1440) return "dayBefore";
+                    if (slot.offset_minutes === -15) return "min15";
+                    return "morningOf";
+                  })();
+
+                  const hasDoc = !!(slot.doc_id && slot.doc_url);
 
                   return (
                     <div
@@ -1400,12 +1129,11 @@ export default function KeapCalendar() {
                         minWidth: 0,
                         display: "flex",
                         flexDirection: "column",
+                        transition: "all 180ms ease",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <div style={{ fontSize: 13, fontWeight: 800 }}>
-                          Slot {slot.slot_index}
-                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>Slot {slot.slot_index}</div>
 
                         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, opacity: 0.9 }}>
                           <input
@@ -1423,336 +1151,185 @@ export default function KeapCalendar() {
                         </label>
                       </div>
 
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 10,
-                          marginTop: 12,
-                          flexWrap: "nowrap",
-                          alignItems: "flex-end",
-                          width: "100%",
-                        }}
-                      >
-                        {ui?.mode === "timeOfDay" && (
-                          <>
-                            <div style={{ flex: "0 0 150px" }}>
-                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Day</div>
-                              <select
-                                value={ui?.dayChoice ?? "sameDay"}
-                                onChange={(e) => {
-                                  const dayChoice = e.target.value as SlotUI["dayChoice"];
-                                  setSlotUI((prev) => ({
-                                    ...prev,
-                                    [slot.slot_index]: { ...(prev[slot.slot_index] as SlotUI), dayChoice },
-                                  }));
-                                }}
-                                style={{
-                                  width: "100%",
-                                  padding: "10px 12px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.18)",
-                                  background: "#0b0b0b",
-                                  color: "white",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <option value="sameDay">Same day</option>
-                                <option value="dayBefore">Day before</option>
-                                <option value="twoDaysBefore">2 Days before</option>
-                              </select>
-                            </div>
-
-                            <div style={{ flex: "0 0 70px" }}>
-                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Hour</div>
-                              <select
-                                value={ui?.hour ?? 9}
-                                onChange={(e) => {
-                                  const hour = Number(e.target.value);
-                                  setSlotUI((prev) => ({
-                                    ...prev,
-                                    [slot.slot_index]: { ...(prev[slot.slot_index] as SlotUI), hour },
-                                  }));
-                                }}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 10px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.18)",
-                                  background: "#0b0b0b",
-                                  color: "white",
-                                }}
-                              >
-                                {Array.from({ length: 12 }).map((_, i) => {
-                                  const v = i + 1;
-                                  return (
-                                    <option key={v} value={v}>
-                                      {v}
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            </div>
-
-                            <div style={{ flex: "0 0 78px" }}>
-                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Minutes</div>
-                              <select
-                                value={ui?.minute ?? 0}
-                                onChange={(e) => {
-                                  const minute = Number(e.target.value);
-                                  setSlotUI((prev) => ({
-                                    ...prev,
-                                    [slot.slot_index]: { ...(prev[slot.slot_index] as SlotUI), minute },
-                                  }));
-                                }}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 10px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.18)",
-                                  background: "#0b0b0b",
-                                  color: "white",
-                                }}
-                              >
-                                {[0, 15, 30, 45].map((m) => (
-                                  <option key={m} value={m}>
-                                    {String(m).padStart(2, "0")}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div style={{ flex: "0 0 74px" }}>
-                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>AM/PM</div>
-                              <select
-                                value={ui?.ampm ?? "AM"}
-                                onChange={(e) => {
-                                  const ampm = e.target.value as SlotUI["ampm"];
-                                  setSlotUI((prev) => ({
-                                    ...prev,
-                                    [slot.slot_index]: {
-                                      ...(prev[slot.slot_index] as SlotUI),
-                                      ampm,
-                                    },
-                                  }));
-                                }}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 10px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.18)",
-                                  background: "#0b0b0b",
-                                  color: "white",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <option value="AM">AM</option>
-                                <option value="PM">PM</option>
-                              </select>
-                            </div>
-                            </>
-                          )}
-                        </div>
-  
-                        {/* Copy fields */}
-                        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                          <div>
-                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Subject</div>
-                            <input
-                              value={slot.subject ?? ""}
-                              onChange={(e) =>
-                                setEditSlots((prev) =>
-                                  prev.map((s) =>
-                                    s.slot_index === slot.slot_index ? { ...s, subject: e.target.value } : s
-                                  )
-                                )
-                              }
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 10,
-                                border: "1px solid rgba(255,255,255,0.18)",
-                                background: "white",
-                                color: "#111",
-                              }}
-                            />
-                          </div>
-                          {/* Preview line */}
-                          <div>
-                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
-                              Preview line
-                            </div>
-                            <input
-                              value={slot.preview_line ?? ""}
-                              onChange={(e) =>
-                                setEditSlots((prev) =>
-                                  prev.map((s) =>
+                      {/* Collapsible body (only show when enabled) */}
+                      {slot.enabled && (
+                        <>
+                          {/* Timing dropdown (locks after doc is created) */}
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Send</div>
+                            <select
+                              value={selected}
+                              disabled={hasDoc}
+                              onChange={(e) => {
+                                if (!editEvent) return;
+                                const uiValue = e.target.value as "dayBefore" | "morningOf" | "min15";
+                              
+                                const offset_minutes = offsetMinutesForPreset(uiValue, editEvent.start_at);
+                              
+                                const reminder_key =
+                                  uiValue === "dayBefore" ? "day_before" :
+                                  uiValue === "morningOf" ? "morning_of" :
+                                  "15_min_before";
+                              
+                                setEditSlots(prev =>
+                                  prev.map(s =>
                                     s.slot_index === slot.slot_index
-                                      ? { ...s, preview_line: e.target.value }
+                                      ? { ...s, offset_minutes, reminder_key }
                                       : s
                                   )
-                                )
-                              }
+                                );
+                              }}
                               style={{
                                 width: "100%",
                                 padding: "10px 12px",
                                 borderRadius: 10,
                                 border: "1px solid rgba(255,255,255,0.18)",
-                                background: "white",
-                                color: "#111",
-                              }}
-                            />
-                          </div>
-  
-                          <div>
-                            {/* Email preview (click to edit) */}
-                            <div style={{ marginTop: 12 }}>
-                          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Email preview</div>
-
-                          <div
-                            onMouseEnter={() => setHoveredPreviewSlot(slot.slot_index)}
-                            onMouseLeave={() => setHoveredPreviewSlot(null)}
-                            onClick={() => {
-                              setEditingSlotIndex(slot.slot_index);
-                              setHtmlEditorOpen(true);
-                              // Load current HTML into editor AFTER modal mounts
-                              setTimeout(() => {
-                                const fresh = editSlots.find((s) => s.slot_index === slot.slot_index);
-                                if (editorRef.current) {
-                                  editorRef.current.innerHTML = fresh?.html?.trim()
-                                    ? fresh!.html
-                                    : safeDefaultBody();
-                                }
-                              }, 0);
-                            }}
-                            style={{
-                              position: "relative",
-                              border: "1px solid rgba(255,255,255,0.18)",
-                              borderRadius: 12,
-                              background: "#0b0b0b",
-                              padding: 12,
-                              minHeight: 120,
-                              cursor: "pointer",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {/* Rendered preview */}
-                            <div style={{ position: "relative" }}>
-                              {slot.html?.trim() ? (
-                                <iframe
-                                  title={`preview-slot-${slot.slot_index}`}
-                                  style={{
-                                    width: "100%",
-                                    height: 180,
-                                    border: "0",
-                                    borderRadius: 10,
-                                    background: "white",
-                                  }}
-                                  sandbox=""
-                                  srcDoc={wrapEmailHtml(slot.html)}
-                                />
-                              ) : (
-                                <div style={{ opacity: 0.9, fontSize: 13, lineHeight: 1.4 }}>
-                                  Click to write this email…
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Hover overlay */}
-                            <div
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: "rgba(0,0,0,0.35)",
-                                opacity: hoveredPreviewSlot === slot.slot_index ? 1 : 0,
-                                transition: "opacity 120ms ease",
-                                pointerEvents: "auto",
-                                cursor: "pointer",
+                                background: "#0b0b0b",
+                                color: "white",
+                                whiteSpace: "nowrap",
+                                opacity: hasDoc ? 0.7 : 1,
+                                cursor: hasDoc ? "not-allowed" : "pointer",
                               }}
                             >
+                              <option value="dayBefore">Day Before</option>
+                              <option value="morningOf">Morning of</option>
+                              <option value="min15">15 minutes before</option>
+                            </select>
+                          </div>
+
+                          {/* Google Doc preview */}
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Email Copy</div>
+
+                            {hasDoc ? (
                               <div
+                                onMouseEnter={() => setHoveredPreviewSlot(slot.slot_index)}
+                                onMouseLeave={() => setHoveredPreviewSlot(null)}
+                                onClick={() => window.open(slot.doc_url!, "_blank")}
                                 style={{
-                                  padding: "8px 14px",
-                                  borderRadius: 999,
-                                  background: "rgba(255,255,255,0.92)",
-                                  color: "#111",
-                                  fontWeight: 800,
-                                  border: "1px solid rgba(0,0,0,0.2)",
+                                  position: "relative",
+                                  height: 180,
+                                  borderRadius: 12,
+                                  overflow: "hidden",
+                                  cursor: "pointer",
+                                  background: "white",
+                                  border: "1px solid rgba(0,0,0,0.18)",
                                 }}
                               >
-                                Edit
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                                <iframe
+                                  title={`doc-preview-${editEvent?.id ?? "event"}-${slot.slot_index}`}
+                                  src={`https://docs.google.com/document/d/${slot.doc_id}/preview`}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    border: 0,
+                                    display: "block",
+                                    background: "white",
+                                  }}
+                                />
 
-                            {/* Raw HTML (read-only) 
-                            <div style={{ marginTop: 12 }}>
-                              <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>HTML</div>
-                              <textarea
-                                value={slot.html ?? ""}
-                                readOnly
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: "rgba(0,0,0,0.35)",
+                                    opacity: hoveredPreviewSlot === slot.slot_index ? 1 : 0,
+                                    transition: "opacity 120ms ease",
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 999,
+                                      background: "rgba(255,255,255,0.92)",
+                                      color: "#111",
+                                      fontWeight: 800,
+                                      border: "1px solid rgba(0,0,0,0.2)",
+                                    }}
+                                  >
+                                    Edit
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div
                                 style={{
-                                  width: "100%",
-                                  minHeight: 110,
-                                  padding: "10px 12px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.18)",
-                                  background: "#0b0b0b",
-                                  color: "white",
-                                  fontFamily: "monospace",
-                                  fontSize: 12,
+                                  border: "1px dashed rgba(255,255,255,0.25)",
+                                  borderRadius: 12,
+                                  padding: 12,
+                                  opacity: 0.8,
+                                  fontSize: 13,
                                 }}
-                              />
-                            </div> */}
-  
-                            <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              marginTop: "auto",
-                            }}
-                          >
+                              >
+                                No doc linked yet. Click “Create Doc” below.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Per-slot Create Doc button (replaces Save) */}
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                             <button
-                              onClick={() => saveSlot(slot.slot_index)}
+                              disabled={hasDoc}
+                              onClick={async () => {
+                                if (!editEvent) return;
+
+                                try {
+                                  setEditBanner("");
+
+                                  const res = await fetch(`/api/keap/events/${editEvent.id}/create-doc`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      slot_index: slot.slot_index,
+                                      reminder_key: slot.reminder_key,     // critical
+                                      call_type: editEvent.call_type,
+                                      start_at: editEvent.start_at,
+                                    }),
+                                  });
+
+                                  const data = await res.json().catch(() => null);
+
+                                  if (!res.ok || !data?.ok) {
+                                    setEditBanner(`✖ Create Doc failed: ${data?.error ?? "Unknown error"}`);
+                                    return;
+                                  }
+
+                                  // Refresh the modal data so slot.doc_id/doc_url appears and locks UI
+                                  await openEdit(editEvent.id);
+                                } catch (err: any) {
+                                  setEditBanner(`✖ Create Doc failed: ${err?.message ?? String(err)}`);
+                                }
+                              }}
                               style={{
                                 padding: "10px 14px",
                                 borderRadius: 10,
                                 border: "1px solid rgba(255,255,255,0.2)",
-                                background: "white",
-                                color: "#111",
-                                cursor: "pointer",
+                                background: hasDoc ? "transparent" : "white",
+                                color: hasDoc ? "rgba(255,255,255,0.6)" : "#111",
+                                cursor: hasDoc ? "default" : "pointer",
                                 fontWeight: 800,
                               }}
                             >
-                              Save Slot {slot.slot_index}
+                              {hasDoc ? "Doc Created" : "Create Doc"}
                             </button>
                           </div>
-                        </div>
-                      </div>
-                      {htmlEditorOpen && editingSlotIndex === slot.slot_index && (
-                        <TipTapEmailEditor
-                          title={`Edit Email — Slot ${slot.slot_index}`}
-                          initialHtml={editSlots.find((s) => s.slot_index === slot.slot_index)?.html ?? ""}
-                          onCancel={() => {
-                            setHtmlEditorOpen(false);
-                            setEditingSlotIndex(null);
-                          }}
-                          onSave={(html) => saveSlotFromEditor(slot.slot_index, html)}
-                        />
+                        </>
                       )}
                     </div>
                   );
-                  })}
+                })}
                 </div>
               </div>
             )}
+            </div>
           </div>
-        </div>,
-        document.body
-      )}
+        , document.body)
+      }
+
     </div>
   );
-  }
+}

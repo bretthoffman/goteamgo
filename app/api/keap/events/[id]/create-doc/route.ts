@@ -7,54 +7,70 @@ export async function POST(req: Request, context: Ctx) {
   const sb = supabaseServer();
   const { id: eventId } = await context.params;
 
-  // Optional body fields (client may send these)
   const body = await req.json().catch(() => ({}));
-  const call_type = body?.call_type as string | undefined;
-  const start_at = body?.start_at as string | undefined;
-  const title = body?.title as string | undefined;
 
-  // 1) Load event
+  const slot_index = Number(body?.slot_index);
+  const reminder_key = (body?.reminder_key as string | undefined) ?? null;
+
+  if (![1, 2, 3].includes(slot_index)) {
+    return NextResponse.json(
+      { ok: false, error: "Missing/invalid slot_index (must be 1, 2, or 3)" },
+      { status: 400 }
+    );
+  }
+
+  // 1) Load event (we need call_type/start_at/title for doc naming & template selection)
   const { data: event, error: e1 } = await sb
     .from("keap_call_events")
-    .select("*")
+    .select("id,title,call_type,start_at")
     .eq("id", eventId)
     .single();
 
   if (e1) return NextResponse.json({ ok: false, error: e1.message }, { status: 400 });
   if (!event) return NextResponse.json({ ok: false, error: "Event not found" }, { status: 404 });
 
-  // If already created, just return existing
-  if (event.doc_id && event.doc_url) {
-    return NextResponse.json({ ok: true, event });
-  }
+  // 2) Load slot (to prevent double-create)
+  const { data: slot, error: eSlot } = await sb
+    .from("keap_call_event_slots")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("slot_index", slot_index)
+    .single();
 
-  // 2) Call Apps Script “copy template doc” endpoint
-  const scriptUrl = process.env.GDOC_CREATE_SCRIPT_URL;
+  if (eSlot) return NextResponse.json({ ok: false, error: eSlot.message }, { status: 400 });
+  if (!slot) return NextResponse.json({ ok: false, error: "Slot not found" }, { status: 404 });
+
+  if (slot.doc_id && slot.doc_url) {
+    // Already created -> return as-is
+    return NextResponse.json({ ok: true, event, slot });
+  }
+  // 3) Call Apps Script “copy template doc” endpoint
+  const scriptUrl = process.env.GDOC_COPY_WEBAPP_URL;
   const secret = process.env.GDOC_COPY_SECRET;
 
   if (!scriptUrl) {
-    return NextResponse.json({ ok: false, error: "Missing GDOC_CREATE_SCRIPT_URL env var" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Missing GDOC_COPY_WEBAPP_URL env var" }, { status: 500 });
   }
   if (!secret) {
     return NextResponse.json({ ok: false, error: "Missing GDOC_COPY_SECRET env var" }, { status: 500 });
   }
 
-  // Build payload
-  const safeTitle = title ?? event.title ?? "Call Event";
+  // IMPORTANT: your Apps Script now authenticates via body.secret, not query params
   const payload = {
-    secret: process.env.GDOC_COPY_SECRET,
+    secret,
     event_id: eventId,
-    call_type: call_type ?? event.call_type,
-    start_at: start_at ?? event.start_at,
-    title: safeTitle,
+    slot_index,
+    reminder_key, // optional but recommended
+    call_type: event.call_type,
+    start_at: event.start_at,
+    title: event.title,
   };
 
   let doc_id: string | null = null;
   let doc_url: string | null = null;
 
   try {
-    // Apps Script expects: POST body JSON, plus ?secret=...
-    const r = await fetch(`${scriptUrl}?secret=${encodeURIComponent(secret)}`, {
+    const r = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -85,15 +101,20 @@ export async function POST(req: Request, context: Ctx) {
     );
   }
 
-  // 3) Save onto the event row
-  const { data: updated, error: e2 } = await sb
-    .from("keap_call_events")
-    .update({ doc_id, doc_url })
-    .eq("id", eventId)
+  // 4) Save doc onto the SLOT row (not the event)
+  const { data: updatedSlot, error: e2 } = await sb
+    .from("keap_call_event_slots")
+    .update({
+      doc_id,
+      doc_url,
+      ...(reminder_key ? { reminder_key } : {}),
+    })
+    .eq("event_id", eventId)
+    .eq("slot_index", slot_index)
     .select("*")
     .single();
 
   if (e2) return NextResponse.json({ ok: false, error: e2.message }, { status: 400 });
 
-  return NextResponse.json({ ok: true, event: updated });
+  return NextResponse.json({ ok: true, event, slot: updatedSlot });
 }
