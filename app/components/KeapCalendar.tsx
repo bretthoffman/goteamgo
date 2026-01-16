@@ -62,7 +62,20 @@ async function safeJson(
   }
 }
 
+type SendPreset = "dayBefore" | "morningOf" | "min15";
 
+function presetToReminderKey(p: SendPreset): "day_before" | "morning_of" | "15_min_before" {
+  if (p === "dayBefore") return "day_before";
+  if (p === "morningOf") return "morning_of";
+  return "15_min_before";
+}
+
+function reminderKeyToPreset(k?: string | null): SendPreset {
+  if (k === "day_before") return "dayBefore";
+  if (k === "morning_of") return "morningOf";
+  if (k === "15_min_before") return "min15";
+  return "morningOf"; // fallback
+}
 const CALL_TYPES = [
   "Ask Us Anything",
   "Copy Call",
@@ -1110,12 +1123,13 @@ export default function KeapCalendar() {
                   }}
                 >
                   {editSlots.map((slot) => {
-                  const selected = (() => {
-                    // Map your offsets to the 3 options
-                    if (slot.offset_minutes === -1440) return "dayBefore";
-                    if (slot.offset_minutes === -15) return "min15";
-                    return "morningOf";
-                  })();
+                  const selected: SendPreset = slot.reminder_key
+                  ? reminderKeyToPreset(slot.reminder_key)
+                  : (() => {
+                      if (slot.offset_minutes === -1440) return "dayBefore";
+                      if (slot.offset_minutes === -15) return "min15";
+                      return "morningOf";
+                    })();
 
                   const hasDoc = !!(slot.doc_id && slot.doc_url);
 
@@ -1161,18 +1175,13 @@ export default function KeapCalendar() {
                               value={selected}
                               disabled={hasDoc}
                               onChange={(e) => {
-                                if (!editEvent) return;
-                                const uiValue = e.target.value as "dayBefore" | "morningOf" | "min15";
+                                const v = e.target.value as SendPreset;
                               
-                                const offset_minutes = offsetMinutesForPreset(uiValue, editEvent.start_at);
+                                const offset_minutes = v === "dayBefore" ? -1440 : v === "min15" ? -15 : 0;
+                                const reminder_key = presetToReminderKey(v);
                               
-                                const reminder_key =
-                                  uiValue === "dayBefore" ? "day_before" :
-                                  uiValue === "morningOf" ? "morning_of" :
-                                  "15_min_before";
-                              
-                                setEditSlots(prev =>
-                                  prev.map(s =>
+                                setEditSlots((prev) =>
+                                  prev.map((s) =>
                                     s.slot_index === slot.slot_index
                                       ? { ...s, offset_minutes, reminder_key }
                                       : s
