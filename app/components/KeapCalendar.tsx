@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 
 
 
-// ---------- Types ----------
+// ---------- Types ---------
 
 type DbEvent = {
   id: string;
