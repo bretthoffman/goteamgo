@@ -1248,7 +1248,7 @@ export default function KeapCalendar() {
                                   style={{
                                     fontSize: 12,
                                     opacity: 0.7,
-                                    marginTop: 10,
+                                    marginTop: 1,
                                   }}
                                 >
                                   Click to open (you can’t preview Google Docs inside the app)
