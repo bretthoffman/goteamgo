@@ -770,7 +770,12 @@ export default function KeapCalendar() {
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
-        height={600}
+
+        // Use viewport height so the month always shows all rows (no clipping/scrolling)
+        height="calc(100vh - 260px)"
+        contentHeight="auto"
+        expandRows={true}
+
         headerToolbar={{
           left: "prev,next today",
           center: "title",
@@ -792,7 +797,7 @@ export default function KeapCalendar() {
         eventContent={(arg) => {
           const id = String(arg.event.id);
           const confirmed = !!confirmedById[id];
-      
+
           return (
             <div
               style={{
