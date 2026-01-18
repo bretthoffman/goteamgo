@@ -131,20 +131,6 @@ export default function Home() {
   {/* LEFT PANEL (Test) */}
   <section style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
 
-    <button
-      onClick={handleSendTestEmail}
-      disabled={sending}
-      style={{
-        padding: "10px 14px",
-        borderRadius: 10,
-        border: "1px solid #ccc",
-        cursor: sending ? "not-allowed" : "pointer",
-        background: "white",
-      }}
-    >
-      {sending ? "Sending..." : "Send Test Email"}
-    </button>
-
     {sendResult && <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{sendResult}</pre>}
   </section>
 
