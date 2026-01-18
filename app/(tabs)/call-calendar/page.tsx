@@ -20,7 +20,7 @@ export default function Home() {
       </h1>
 
       <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>
-        Manage call reminders and generate Google Docs per slot.
+        Manage call reminders and their related copy in Google Docs.
       </div>
 
       <div

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ---------------- Root theme vars ---------------- */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -11,24 +12,56 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-/* --- FullCalendar minimal styling fallback (since package has no CSS) --- */
+
+/* ---------------- App shell (dark) ---------------- */
+html,
+body {
+  background-color: #000; /* dark app shell */
+  color: #8b5cf6;         /* your purple accent text */
+}
+
+/* ---------------- Dark-mode vars ---------------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* ==================================================
+   FullCalendar styling (white surface inside dark app)
+   ================================================== */
+
+/* Calendar container */
 .fc {
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
   padding: 12px;
+  color: #111; /* 🔑 restore readable text */
 }
 
+/* Month title */
 .fc .fc-toolbar-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
+  color: #111;
 }
 
+/* Day-of-week headers + day numbers */
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: #111;
+  font-weight: 600;
+}
+
+/* Toolbar buttons */
 .fc .fc-button {
   border: 1px solid #ddd;
-  background: white;
+  background: #ffffff;
   color: #111;
   border-radius: 10px;
   padding: 6px 10px;
+  font-weight: 600;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active,
@@ -37,24 +70,15 @@
   color: #111;
 }
 
+/* Grid sizing */
 .fc .fc-daygrid-day-frame {
   min-height: 90px;
 }
 
+/* Event pills */
 .fc .fc-event {
   border-radius: 8px;
   padding: 2px 6px;
   font-size: 12px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* Preserve dark background, change text only */
-html, body {
-  background-color: #000; /* or whatever dark color you were using */
-  color: #8b5cf6;
+  font-weight: 600;
 }
