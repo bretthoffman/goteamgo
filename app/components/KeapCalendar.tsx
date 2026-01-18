@@ -984,24 +984,6 @@ export default function KeapCalendar() {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "0 0 auto" }}>
-                  <button
-                    disabled={hasDoc || createDocBusy}
-                    onClick={() => {
-                      if (!editEvent) return;
-                      createGoogleDocForEvent();
-                    }}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      background: hasDoc || createDocBusy ? "transparent" : "white",
-                      color: hasDoc || createDocBusy ? "rgba(255,255,255,0.6)" : "#111",
-                      cursor: hasDoc || createDocBusy ? "default" : "pointer",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {hasDoc ? "Doc Created" : "Create Doc"}
-                  </button>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, opacity: 0.9 }}>
                       <div style={{ fontWeight: 800 }}>Confirmed?</div>
 
@@ -1149,17 +1131,37 @@ export default function KeapCalendar() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                         <div style={{ fontSize: 13, fontWeight: 800 }}>Slot {slot.slot_index}</div>
 
-                        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, opacity: 0.9 }}>
-                          <input
+                        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, opacity: hasDoc ? 0.6 : 0.9 }}>
+                        <input
                             type="checkbox"
-                            checked={slot.enabled}
-                            onChange={(e) =>
+                            checked={!!slot.enabled}
+                            disabled={hasDoc} // ✅ lock once doc exists
+                            onChange={async (e) => {
+                              if (!editEvent) return;
+                              if (hasDoc) return;
+
+                              const enabled = e.target.checked;
+
+                              // optimistic UI
                               setEditSlots((prev) =>
-                                prev.map((s) =>
-                                  s.slot_index === slot.slot_index ? { ...s, enabled: e.target.checked } : s
-                                )
-                              )
-                            }
+                                prev.map((s) => (s.slot_index === slot.slot_index ? { ...s, enabled } : s))
+                              );
+
+                              // ✅ persist immediately
+                              await fetch(`/api/keap/events/${editEvent.id}/slots/${slot.slot_index}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  enabled,
+                                  offset_minutes: slot.offset_minutes,
+                                  reminder_key: slot.reminder_key ?? null,
+                                }),
+                              });
+                            }}
+                            style={{
+                              opacity: hasDoc ? 0.5 : 1,
+                              cursor: hasDoc ? "not-allowed" : "pointer",
+                            }}
                           />
                           Enabled
                         </label>
@@ -1174,19 +1176,26 @@ export default function KeapCalendar() {
                             <select
                               value={selected}
                               disabled={hasDoc}
-                              onChange={(e) => {
+                              onChange={async (e) => {
+                                if (!editEvent) return;
+                              
                                 const v = e.target.value as SendPreset;
-                              
                                 const offset_minutes = v === "dayBefore" ? -1440 : v === "min15" ? -15 : 0;
-                                const reminder_key = presetToReminderKey(v);
+                                const reminder_key = presetToReminderKey(v); // ✅ day_before / morning_of / 15_min_before
                               
+                                // optimistic UI
                                 setEditSlots((prev) =>
                                   prev.map((s) =>
-                                    s.slot_index === slot.slot_index
-                                      ? { ...s, offset_minutes, reminder_key }
-                                      : s
+                                    s.slot_index === slot.slot_index ? { ...s, offset_minutes, reminder_key } : s
                                   )
                                 );
+                              
+                                // ✅ persist immediately
+                                await fetch(`/api/keap/events/${editEvent.id}/slots/${slot.slot_index}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ offset_minutes, reminder_key }),
+                                });
                               }}
                               style={{
                                 width: "100%",
@@ -1221,8 +1230,8 @@ export default function KeapCalendar() {
                                   borderRadius: 12,
                                   overflow: "hidden",
                                   cursor: "pointer",
-                                  background: "#0b0b0b",
-                                  border: "1px solid rgba(255,255,255,0.18)",
+                                  background: "white",
+                                  border: "1px solid #d1d5db",
                                   padding: 12,
                                   display: "flex",
                                   flexDirection: "column",
@@ -1231,15 +1240,15 @@ export default function KeapCalendar() {
                                 title="Open Google Doc"
                               >
                                 <div>
-                                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
-                                    Google Doc linked
-                                  </div>
+                                <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>
+                                  Google Doc linked
+                                </div>
 
-                                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+                                  <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
                                     Open Doc →
                                   </div>
 
-                                  <div style={{ fontSize: 12, opacity: 0.8, wordBreak: "break-all" }}>
+                                  <div style={{ fontSize: 12, color: "#1f2937", wordBreak: "break-all" }}>
                                     {slot.doc_url}
                                   </div>
                                 </div>
@@ -1247,7 +1256,7 @@ export default function KeapCalendar() {
                                 <div
                                   style={{
                                     fontSize: 12,
-                                    opacity: 0.7,
+                                    color: "#4b5563",
                                     marginTop: 10,
                                   }}
                                 >
@@ -1262,7 +1271,7 @@ export default function KeapCalendar() {
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    background: "rgba(0,0,0,0.35)",
+                                    background: "rgba(0,0,0,0.08)",
                                     opacity: hoveredPreviewSlot === slot.slot_index ? 1 : 0,
                                     transition: "opacity 120ms ease",
                                     pointerEvents: "none",
