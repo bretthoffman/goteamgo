@@ -815,9 +815,15 @@ export default function KeapCalendar() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
-              title={arg.event.title}
+              title={(() => {
+                const rawTitle = arg.event.title || "";
+                return rawTitle === "Copy Call" ? "Copy Clinic" : rawTitle;
+              })()}
             >
-              {arg.event.title}
+              {(() => {
+                const rawTitle = arg.event.title || "";
+                return rawTitle === "Copy Call" ? "Copy Clinic" : rawTitle;
+              })()}
             </div>
           );
         }}
