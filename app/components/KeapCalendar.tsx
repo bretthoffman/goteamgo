@@ -89,6 +89,11 @@ const CALL_TYPES = [
 function defaultTitleForCallType(callType: string) {
   const trimmed = callType.trim();
 
+  // Special case: Copy Call → Copy Clinic
+  if (trimmed === "Copy Call") {
+    return "Copy Clinic";
+  }
+
   // If it already ends with "call" (case-insensitive), use as-is
   if (trimmed.toLowerCase().endsWith(" call")) {
     return trimmed;
@@ -815,15 +820,9 @@ export default function KeapCalendar() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
-              title={(() => {
-                const rawTitle = arg.event.title || "";
-                return rawTitle === "Copy Call" ? "Copy Clinic" : rawTitle;
-              })()}
+              title={arg.event.title}
             >
-              {(() => {
-                const rawTitle = arg.event.title || "";
-                return rawTitle === "Copy Call" ? "Copy Clinic" : rawTitle;
-              })()}
+              {arg.event.title}
             </div>
           );
         }}
