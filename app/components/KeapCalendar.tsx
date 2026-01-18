@@ -1312,7 +1312,7 @@ export default function KeapCalendar() {
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
                                       slot_index: slot.slot_index,
-                                      reminder_key: slot.reminder_key,     // critical
+                                      reminder_key: slot.reminder_key ?? presetToReminderKey(selected),
                                       call_type: editEvent.call_type,
                                       start_at: editEvent.start_at,
                                     }),
