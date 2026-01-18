@@ -1321,7 +1321,9 @@ export default function KeapCalendar() {
                                   const data = await res.json().catch(() => null);
 
                                   if (!res.ok || !data?.ok) {
-                                    setEditBanner(`✖ Create Doc failed: ${data?.error ?? "Unknown error"}`);
+                                    const msg = data?.error ?? "Unknown error";
+                                    const details = data?.details ? `\n\n${JSON.stringify(data.details, null, 2)}` : "";
+                                    setEditBanner(`✖ Create Doc failed: ${msg}${details}`);
                                     return;
                                   }
 
