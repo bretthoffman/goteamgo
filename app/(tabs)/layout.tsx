@@ -17,7 +17,6 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       style={{
         minHeight: "100vh",
         background: "#0b0b0b",
-        color: "white",
         display: "flex",
         flexDirection: "column",
       }}
@@ -34,6 +33,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           gap: 18,
           background: "#0b0b0b",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
+          color: "white",
         }}
       >
         <div

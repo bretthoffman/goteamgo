@@ -704,7 +704,7 @@ const StudioRentalApp = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6" style={{ color: "#111" }}>
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-6">
           <div className="mx-auto mb-4 w-64">
