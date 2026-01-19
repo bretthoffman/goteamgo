@@ -18,6 +18,7 @@ type DbEvent = {
   call_type: string;
   start_at: string;
   end_at: string | null;
+  confirmed?: boolean | null;
 
   // Google Doc link (optional until created)
   doc_id?: string | null;
@@ -205,7 +206,7 @@ function minutesBetween(a: Date, b: Date) {
 export default function KeapCalendar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-    // Confirmed state (persists locally)
+  // Confirmed state (loaded from events)
   const [confirmedById, setConfirmedById] = useState<Record<string, boolean>>({});
   function getEasternYMD(iso: string) {
     const d = new Date(iso);
@@ -278,24 +279,6 @@ export default function KeapCalendar() {
   }
   
 
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      const raw = localStorage.getItem("keap_confirmed_events");
-      if (raw) setConfirmedById(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      localStorage.setItem("keap_confirmed_events", JSON.stringify(confirmedById));
-    } catch {
-      // ignore
-    }
-  }, [confirmedById, mounted]);
 
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -415,6 +398,15 @@ export default function KeapCalendar() {
           end: r.end_at ?? undefined,
         }))
       );
+      
+      // Load confirmed state from events
+      const confirmedMap: Record<string, boolean> = {};
+      rows.forEach((r) => {
+        if (r.confirmed !== undefined && r.confirmed !== null) {
+          confirmedMap[r.id] = r.confirmed;
+        }
+      });
+      setConfirmedById(confirmedMap);
     } catch (e: any) {
       setBanner(`✖ Failed to load events: ${e?.message ?? String(e)}`);
       setEvents([]);
@@ -527,8 +519,17 @@ export default function KeapCalendar() {
       if (data.__empty) return setEditBanner("✖ Event load failed: empty response body.");
       if (data.__parseError) return setEditBanner(`✖ Event load failed: non-JSON:\n${data.raw?.slice(0, 300)}`);
 
-      setEditEvent(data.event as DbEvent);
+      const event = data.event as DbEvent;
+      setEditEvent(event);
       setEditSlots((data.slots ?? []) as DbSlot[]);
+      
+      // Update confirmed state from event
+      if (event.confirmed !== undefined && event.confirmed !== null) {
+        setConfirmedById((prev) => ({
+          ...prev,
+          [event.id]: event.confirmed!,
+        }));
+      }
     } catch (e: any) {
       setEditBanner(`✖ Failed to load event: ${e?.message ?? String(e)}`);
     } finally {
@@ -1001,12 +1002,43 @@ export default function KeapCalendar() {
                         <input
                           type="checkbox"
                           checked={editEvent ? !!confirmedById[editEvent.id] : false}
-                          onChange={() => {
+                          onChange={async () => {
                             if (!editEvent) return;
-                            setConfirmedById((prev) => {
-                              const next = !prev[editEvent.id];
-                              return { ...prev, [editEvent.id]: next };
-                            });
+                            const eventId = editEvent.id;
+                            const prevValue = !!confirmedById[eventId];
+                            const nextValue = !prevValue;
+                            
+                            // Optimistic UI update
+                            setConfirmedById((prev) => ({
+                              ...prev,
+                              [eventId]: nextValue,
+                            }));
+                            
+                            // Persist to Supabase
+                            try {
+                              const res = await fetch(`/api/keap/events/${eventId}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ confirmed: nextValue }),
+                              });
+                              
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => null);
+                                setEditBanner(`✖ Failed to update confirmed: ${data?.error ?? "Unknown error"}`);
+                                // Revert on error
+                                setConfirmedById((prev) => ({
+                                  ...prev,
+                                  [eventId]: prevValue,
+                                }));
+                              }
+                            } catch (err: any) {
+                              setEditBanner(`✖ Failed to update confirmed: ${err?.message ?? String(err)}`);
+                              // Revert on error
+                              setConfirmedById((prev) => ({
+                                ...prev,
+                                [eventId]: prevValue,
+                              }));
+                            }
                           }}
                           style={{ opacity: 0, width: 0, height: 0 }}
                         />

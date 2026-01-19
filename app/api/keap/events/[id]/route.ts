@@ -31,11 +31,19 @@ export async function PATCH(req: Request, context: Ctx) {
   const { id: eventId } = await context.params;
 
   const body = await req.json();
-  const { title, call_type, start_at, end_at, notes } = body;
+  const { title, call_type, start_at, end_at, notes, confirmed } = body;
+
+  const updateData: any = {};
+  if (title !== undefined) updateData.title = title;
+  if (call_type !== undefined) updateData.call_type = call_type;
+  if (start_at !== undefined) updateData.start_at = start_at;
+  if (end_at !== undefined) updateData.end_at = end_at;
+  if (notes !== undefined) updateData.notes = notes;
+  if (confirmed !== undefined) updateData.confirmed = confirmed;
 
   const { data, error } = await sb
     .from("keap_call_events")
-    .update({ title, call_type, start_at, end_at, notes })
+    .update(updateData)
     .eq("id", eventId)
     .select("*")
     .single();
