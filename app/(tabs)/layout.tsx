@@ -7,6 +7,7 @@ const tabs = [
   { label: "Call Calendar", href: "/call-calendar" },
   { label: "Production Staffing Portal", href: "/production-staffing-portal" },
   { label: "Studio Rental Checklist", href: "/studio-rental-checklist" },
+  { label: "Client Database", href: "/client-database" },
 ];
 
 export default function TabsLayout({ children }: { children: React.ReactNode }) {
