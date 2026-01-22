@@ -1,26 +1,97 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Plus } from 'lucide-react';
+
+// All available CSV columns (excluding the ones we start with)
+const ALL_CSV_COLUMNS = [
+  'Name', 'Spouse Name', 'Birthday', 'Company Id', 'Phone 1 Ext', 'Phone 1 Type',
+  'Phone 2', 'Phone 2 Ext', 'Phone 2 Type', 'Phone 3', 'Phone 3 Ext', 'Phone 3 Type',
+  'Email Address 2', 'Email Address 3', 'Fax 1', 'Fax 1 Type', 'Fax 2', 'Fax 2 Type',
+  'Street Address 1', 'Street Address 2', 'City', 'State', 'Postal Code', 'Zip Four', 'Country',
+  'Street Address 1 (Shipping)', 'Street Address 2 (Shipping)', 'City (Shipping)', 'State (Shipping)',
+  'Postal Code (Shipping)', 'Zip Four (Shipping)', 'Country (Shipping)', 'Twitter', 'Facebook',
+  'LinkedIn', 'Instagram', 'YouTube', 'Snapchat', 'Pinterest', 'Street Address 1 (Optional)',
+  'Street Address 2 (Optional)', 'City (Optional)', 'State (Optional)', 'Postal Code (Optional)',
+  'Zip Four (Optional)', 'Country (Optional)', 'Phone 4', 'Phone 4 Ext', 'Phone 4 Type',
+  'Phone 5', 'Phone 5 Ext', 'Phone 5 Type', 'Tag Ids', 'Tags', 'Tag Category Ids', 'Tag Categories',
+  'Person Type', 'Job Title', 'Website', 'Middle Name', 'Nickname', 'User Name', 'Password',
+  'Assistant Name', 'Assistant Phone', 'Title', 'Suffix', 'Anniversary', 'Created By',
+  'Date Created', 'Last Updated', 'OwnerID', 'Notes', 'Language', 'Time Zone', 'Owner',
+  'Lead Source', 'Lead Source Category', 'Referral Code', 'Email Status', 'Gift name', 'Quantity',
+  'Personal message', 'TVE4 Magic Link', 'TVE4 Swag Box Tracking', 'TVE4 Swag Box Carrier',
+  'TVE4 Top 100 Leaderboard', 'TVE4 Top Leaderboard URL', 'TVE3 Webinar Date/Time',
+  'TVE3 Webinar Optin Page', 'TVE3 Webinar Date for PlusThis', 'test', 'EpicEventObvioKey',
+  'ObvioPreviewKey', 'New Obvio User Temp Password', 'Custom_ShippingCountry', 'Custom_BillingCountry',
+  'TVE7 Obvio Login URL', 'TVE8 Coaching Zone Apt Time', 'TVE10 Obvio Login Link',
+  'Affiliate Code Source', 'Remarketing Source', 'LEAP Cohort', 'LEAP Next Payment Date',
+  'EAC24-Access', 'Summer School Access', 'The Offer Effect Workshop',
+  'Last updated listing in directory', 'LEAP Dash Obvio URL', 'Leap3030 Token',
+  'Pre-Submitted Question', 'Referring Friend\'s Name', 'Referring Friend\'s Email',
+  'Instagram', 'YouTube URL', 'How big is your email list?',
+  'How big is your social media following?',
+  'How often do you communicate to your list via email or social me',
+  'What questions do you have for us to set you up for the best suc',
+  'What affiliate partner content would you like to see that will m',
+  'What is your PayPal email address?', 'Blue & Bari - VIP Day - Quiz Results',
+  'Live Event Date', 'Test CFQ', 'TEst CFQ2', 'nwe CFQW', 'BTS Testing Sept 16 2023',
+  'LoginToken', 'State Events 23', 'Onboarding Workshop URL', 'Obvio 2nd Birthday URL',
+  'Ask Bari Anything Question', 'Obvio Updates Magic Link', 'OfferCamp Obvio URL',
+  'LEAP Annie Book Link', 'TVE7 WebinarReferral', 'NewLoginField',
+  'Welcome Email Test Field Can Be Deleted', 'Dynamo Testing 041524 Login URL',
+  '11_07_2024_LT', 'TVE8 Obvio Login URL', 'EAC24 Obvio Login', 'replayExpirationTimestamp',
+  'replayExpirationTime', 'replayExpirationYear', 'replayExpirationDOW', 'replayExpirationMonth',
+  'webinarTimestamp', 'webinarTime', 'webinarYear', 'webinarMonth', 'webinarDOW', 'replayURL',
+  'joinURL', 'webinarAEventJoinURL', 'WebinarTimeEST', 'T-Shirt Size', 'TVE Date',
+  'TVE Webinar Selector', 'TVE Webinar Selector Date/Time', 'TVE Webinar Optin Page',
+  'TVE Webinar Optin Page Variant', 'LoginToken2May', 'ACE Pod Day', 'ACE Pod Date/Time',
+  'Pod Number', 'LEAP: Start Date', 'LEAP: Member Since', 'Payment Option', 'MEMBERS Password',
+  'LEAP', 'LEAP Xmas Party URL', 'Partner First Name', 'Partner Last Name', 'Partner Email Address',
+  'Partner Type', 'affiliate', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content',
+  'utm_term', 'fbc_id', 'h_ad_id'
+];
+
+type ColumnConfig = {
+  key: string;
+  label: string;
+  csvKey: string;
+};
 
 const ClientDatabase = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    firstName: '',
-    lastName: '',
-    clientId: '',
-    email: '',
-    phone: '',
-    company: '',
-    activeLeaper: ''
-  });
-  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const [showEditColumns, setShowEditColumns] = useState(false);
+  const [showAddColumns, setShowAddColumns] = useState(false);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  
+  // Default columns (removed Active Leaper)
+  const [visibleColumns, setVisibleColumns] = useState<ColumnConfig[]>([
+    { key: 'firstName', label: 'First Name', csvKey: 'First Name' },
+    { key: 'lastName', label: 'Last Name', csvKey: 'Last Name' },
+    { key: 'clientId', label: 'Client ID', csvKey: 'Id' },
+    { key: 'email', label: 'Email', csvKey: 'Email' },
+    { key: 'phone', label: 'Phone', csvKey: 'Phone 1' },
+    { key: 'company', label: 'Company', csvKey: 'Company Name' },
+  ]);
+  
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [debouncedFilters, setDebouncedFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const rowsPerPage = 100;
+  
+  // Initialize filters based on visible columns
+  useEffect(() => {
+    const initialFilters: Record<string, string> = {};
+    visibleColumns.forEach(col => {
+      initialFilters[col.key] = '';
+    });
+    setFilters(initialFilters);
+    setDebouncedFilters(initialFilters);
+  }, [visibleColumns]);
 
   // Password authentication
   const handlePasswordSubmit = () => {
@@ -75,27 +146,13 @@ const ClientDatabase = () => {
 
   // Filter clients based on startsWith logic (front to back)
   const filteredClients = clients.filter(client => {
-    const firstName = (client['First Name'] || '').toString().toLowerCase();
-    const lastName = (client['Last Name'] || '').toString().toLowerCase();
-    const clientId = (client['Id'] || '').toString().toLowerCase();
-    const email = (client['Email'] || '').toString().toLowerCase();
-    const phone = (client['Phone 1'] || '').toString().toLowerCase();
-    const company = (client['Company Name'] || '').toString().toLowerCase();
-    const tags = (client['Tags'] || '').toString().toLowerCase();
-    
-    // Determine activeLeaper status from Tags
-    const activeLeaperValue = tags.includes('leap') ? 'active' : tags.includes('former leap') ? 'inactive' : '';
-    const activeLeaperFilter = debouncedFilters.activeLeaper.toLowerCase();
-
-    return (
-      firstName.startsWith(debouncedFilters.firstName.toLowerCase()) &&
-      lastName.startsWith(debouncedFilters.lastName.toLowerCase()) &&
-      clientId.startsWith(debouncedFilters.clientId.toLowerCase()) &&
-      email.startsWith(debouncedFilters.email.toLowerCase()) &&
-      phone.startsWith(debouncedFilters.phone.toLowerCase()) &&
-      company.startsWith(debouncedFilters.company.toLowerCase()) &&
-      (activeLeaperFilter === '' || activeLeaperValue.startsWith(activeLeaperFilter))
-    );
+    return visibleColumns.every(col => {
+      const filterValue = debouncedFilters[col.key] || '';
+      if (!filterValue) return true;
+      
+      const clientValue = (client[col.csvKey] || '').toString().toLowerCase();
+      return clientValue.startsWith(filterValue.toLowerCase());
+    });
   });
 
   // Pagination logic
@@ -114,6 +171,69 @@ const ClientDatabase = () => {
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
+
+  // Column management functions
+  const removeColumn = (key: string) => {
+    setVisibleColumns(prev => prev.filter(col => col.key !== key));
+    setFilters(prev => {
+      const newFilters = { ...prev };
+      delete newFilters[key];
+      return newFilters;
+    });
+  };
+
+  const addColumn = (csvKey: string) => {
+    const label = csvKey;
+    const key = csvKey.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    
+    // Check if column already exists
+    if (visibleColumns.some(col => col.csvKey === csvKey)) {
+      return;
+    }
+    
+    setVisibleColumns(prev => [...prev, { key, label, csvKey }]);
+    setFilters(prev => ({ ...prev, [key]: '' }));
+    setShowAddColumns(false);
+  };
+
+  const handleDragStart = (key: string) => {
+    setDraggedColumn(key);
+  };
+
+  const handleDragOver = (e: React.DragEvent, key: string) => {
+    e.preventDefault();
+    setDragOverColumn(key);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const draggedIndex = visibleColumns.findIndex(col => col.key === draggedColumn);
+    const targetIndex = visibleColumns.findIndex(col => col.key === targetKey);
+    
+    const newColumns = [...visibleColumns];
+    const [removed] = newColumns.splice(draggedIndex, 1);
+    newColumns.splice(targetIndex, 0, removed);
+    
+    setVisibleColumns(newColumns);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  // Get available columns (all CSV columns minus visible ones)
+  const availableColumns = ALL_CSV_COLUMNS.filter(
+    csvKey => !visibleColumns.some(col => col.csvKey === csvKey)
+  );
 
   // Password prompt UI (exact match to studio rental checklist)
   if (!isAuthenticated) {
@@ -166,124 +286,63 @@ const ClientDatabase = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-800 mb-4">Client Database</h1>
         
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden relative">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-cyan-400">
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">First Name</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Last Name</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Client ID</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Email</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Phone</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Company</th>
-                  <th className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800">Active Leaper</th>
+                <tr className="bg-cyan-400 relative">
+                  {visibleColumns.map((col, index) => (
+                    <th 
+                      key={col.key} 
+                      className="border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-800 relative"
+                    >
+                      {col.label}
+                      {index === visibleColumns.length - 1 && (
+                        <button
+                          onClick={() => setShowEditColumns(true)}
+                          className="absolute top-1 right-1 px-2 py-0.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                          Edit Columns
+                        </button>
+                      )}
+                    </th>
+                  ))}
                 </tr>
                 {/* Filter Row */}
                 <tr className="bg-cyan-400">
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.firstName}
-                      onChange={(e) => handleFilterChange('firstName', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.lastName}
-                      onChange={(e) => handleFilterChange('lastName', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.clientId}
-                      onChange={(e) => handleFilterChange('clientId', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.email}
-                      onChange={(e) => handleFilterChange('email', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.phone}
-                      onChange={(e) => handleFilterChange('phone', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.company}
-                      onChange={(e) => handleFilterChange('company', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
-                  <th className="border border-slate-300 p-1">
-                    <input
-                      type="text"
-                      value={filters.activeLeaper}
-                      onChange={(e) => handleFilterChange('activeLeaper', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Filter..."
-                    />
-                  </th>
+                  {visibleColumns.map((col) => (
+                    <th key={col.key} className="border border-slate-300 p-1">
+                      <input
+                        type="text"
+                        value={filters[col.key] || ''}
+                        onChange={(e) => handleFilterChange(col.key, e.target.value)}
+                        className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Filter..."
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {paginatedClients.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="border border-slate-300 px-4 py-8 text-center text-slate-500">
+                    <td colSpan={visibleColumns.length} className="border border-slate-300 px-4 py-8 text-center text-slate-500">
                       No matching clients found
                     </td>
                   </tr>
                 ) : (
-                  paginatedClients.map((client, index) => {
-                    const tags = (client['Tags'] || '').toString();
-                    const isActiveLeaper = tags.toLowerCase().includes('leap') && !tags.toLowerCase().includes('former leap');
-                    const activeLeaperStatus = isActiveLeaper ? 'Active' : tags.toLowerCase().includes('former leap') ? 'Inactive' : '';
-                    
-                    return (
-                      <tr 
-                        key={client['Id'] || index} 
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
-                      >
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-800">{client['First Name'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-800">{client['Last Name'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-700">{client['Id'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-700">{client['Email'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-700">{client['Phone 1'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-700">{client['Company Name'] || ''}</td>
-                        <td className="border border-slate-300 px-4 py-2 text-sm text-slate-700">
-                          {activeLeaperStatus && (
-                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                              activeLeaperStatus === 'Active' ? 'bg-green-100 text-green-800' :
-                              activeLeaperStatus === 'Inactive' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {activeLeaperStatus}
-                            </span>
-                          )}
+                  paginatedClients.map((client, index) => (
+                    <tr 
+                      key={client['Id'] || index} 
+                      className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
+                    >
+                      {visibleColumns.map((col) => (
+                        <td key={col.key} className="border border-slate-300 px-4 py-2 text-sm text-slate-700">
+                          {client[col.csvKey] || ''}
                         </td>
-                      </tr>
-                    );
-                  })
+                      ))}
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -340,6 +399,118 @@ const ClientDatabase = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Columns Modal */}
+      {showEditColumns && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowEditColumns(false);
+            setShowAddColumns(false);
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800">Edit Columns</h2>
+              <button
+                onClick={() => {
+                  setShowEditColumns(false);
+                  setShowAddColumns(false);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-hidden flex">
+              {/* Column List */}
+              <div className="flex-1 p-6 overflow-y-auto">
+                <div className="space-y-2">
+                  {visibleColumns.map((col, index) => (
+                    <div
+                      key={col.key}
+                      draggable
+                      onDragStart={() => handleDragStart(col.key)}
+                      onDragOver={(e) => handleDragOver(e, col.key)}
+                      onDrop={(e) => handleDrop(e, col.key)}
+                      onDragEnd={handleDragEnd}
+                      className={`
+                        flex items-center gap-2 p-3 border rounded-lg cursor-move
+                        ${draggedColumn === col.key ? 'opacity-50' : ''}
+                        ${dragOverColumn === col.key ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+                      `}
+                    >
+                      <button
+                        onClick={() => removeColumn(col.key)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                        title="Remove column"
+                      >
+                        <X size={16} />
+                      </button>
+                      <div className="flex-1 flex items-center gap-2 group">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
+                          <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
+                            {[...Array(9)].map((_, i) => (
+                              <div key={i} className="w-1 h-1 bg-gray-400 rounded-full" />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-800 group-hover:text-gray-400 transition-colors">{col.label}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add Column Button/Panel */}
+              <div className="w-12 border-l flex items-center justify-center relative">
+                {!showAddColumns ? (
+                  <button
+                    onClick={() => setShowAddColumns(true)}
+                    className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                    title="Add column"
+                  >
+                    <Plus size={24} />
+                  </button>
+                ) : (
+                  <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l shadow-lg flex flex-col">
+                    <div className="p-4 border-b flex justify-between items-center">
+                      <h3 className="font-semibold text-gray-800">Available Columns</h3>
+                      <button
+                        onClick={() => setShowAddColumns(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2">
+                      {availableColumns.length === 0 ? (
+                        <p className="text-sm text-gray-500 p-4 text-center">All columns are visible</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {availableColumns.map((csvKey) => (
+                            <button
+                              key={csvKey}
+                              onClick={() => addColumn(csvKey)}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors"
+                            >
+                              {csvKey}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
