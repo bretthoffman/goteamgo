@@ -119,8 +119,16 @@ const ClientDatabase = () => {
           setClients([]);
           setTotalCount(0);
         } else {
-          setClients(data.contacts || []);
-          setTotalCount(data.totalCount || 0);
+          const contacts = data.contacts || [];
+          const total = data.totalCount || 0;
+          console.log(`Loaded ${contacts.length} contacts (expected ${total} total)`);
+          setClients(contacts);
+          setTotalCount(total);
+          
+          // Verify we got all the data
+          if (contacts.length < total) {
+            console.warn(`Warning: Only loaded ${contacts.length} out of ${total} contacts. Some data may be missing.`);
+          }
         }
       } catch (err) {
         console.error('Error:', err);
