@@ -5,45 +5,18 @@ export async function GET(req: Request) {
   try {
     const sb = supabaseServer();
 
-    // First, get the total count
-    const { count, error: countError } = await sb
+    const { data, error, count } = await sb
       .from("keap_contacts")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact" })
+      .limit(100000); // Get all contacts (51k rows)
 
-    if (countError) {
-      return NextResponse.json({ error: countError.message }, { status: 400 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
-    const totalCount = count ?? 0;
-    const batchSize = 1000; // Supabase default limit
-    const allContacts: any[] = [];
-    let offset = 0;
-
-    // Fetch all contacts in batches
-    while (offset < totalCount) {
-      const { data, error } = await sb
-        .from("keap_contacts")
-        .select("*")
-        .range(offset, offset + batchSize - 1);
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-      }
-
-      if (data && data.length > 0) {
-        allContacts.push(...data);
-        offset += batchSize;
-      } else {
-        // No more data
-        break;
-      }
-    }
-
-    console.log(`Fetched ${allContacts.length} contacts out of ${totalCount} total`);
 
     return NextResponse.json({ 
-      contacts: allContacts, 
-      totalCount: totalCount 
+      contacts: data ?? [], 
+      totalCount: count ?? 0 
     });
   } catch (e: any) {
     console.error("GET /api/keap/contacts failed:", e);
