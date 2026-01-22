@@ -413,7 +413,7 @@ const ClientDatabase = () => {
             className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b flex justify-between items-center">
+            <div className="p-6 border-b flex justify-between items-center flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-800">Edit Columns</h2>
               <button
                 onClick={() => {
@@ -426,9 +426,9 @@ const ClientDatabase = () => {
               </button>
             </div>
             
-            <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-hidden flex min-h-0">
               {/* Column List */}
-              <div className="flex-1 p-6 overflow-y-auto">
+              <div className="flex-1 p-6 overflow-y-auto min-h-0">
                 <div className="space-y-2">
                   {visibleColumns.map((col, index) => (
                     <div
