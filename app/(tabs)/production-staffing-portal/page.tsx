@@ -188,26 +188,39 @@ if (crewRes?.value) {
       return; 
     }
     try {
-      const r = await storage.get(`contractor:${loginEmail}`);
-      if (r?.value) {
-        const c = JSON.parse(r.value);
-        if (c.password === loginPwd) {
-          setCName(c.name); 
-          setCEmail(c.email); 
-          setCFullRate(c.fullDayRate || c.dayRate || ''); 
-          setCHalfRate(c.halfDayRate || (c.dayRate ? parseFloat(c.dayRate)/2 : '') || '');
-          setIsContractorAuth(true); 
-          setView('contractor');
-          setLoginEmail(''); 
-          setLoginPwd('');
-        } else { 
-          setShowCLoginErr(true); 
-          setTimeout(() => setShowCLoginErr(false), 3000); 
-        }
-      } else { 
-        setShowCLoginErr(true); 
-        setTimeout(() => setShowCLoginErr(false), 3000); 
+      const res = await fetch('/api/production/contractors/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPwd }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        setShowCLoginErr(true);
+        setTimeout(() => setShowCLoginErr(false), 3000);
+        return;
       }
+
+      const contractor = data.contractor || {};
+
+      setCName(contractor.name || '');
+      setCEmail(contractor.email || '');
+      setCFullRate(
+        contractor.full_day_rate != null
+          ? String(contractor.full_day_rate)
+          : ''
+      );
+      setCHalfRate(
+        contractor.half_day_rate != null
+          ? String(contractor.half_day_rate)
+          : ''
+      );
+
+      setIsContractorAuth(true);
+      setView('contractor');
+      setLoginEmail(''); 
+      setLoginPwd('');
     } catch (error) { 
       setShowCLoginErr(true); 
       setTimeout(() => setShowCLoginErr(false), 3000); 
@@ -218,26 +231,41 @@ if (crewRes?.value) {
     if (!regName || !regEmail || !regPwd || !regFullRate || !regHalfRate) { alert('⚠️ Fill all fields'); return; }
     if (!regEmail.includes('@')) { alert('⚠️ Valid email needed'); return; }
     if (regPwd.length < 4) { alert('⚠️ Password min 4 chars'); return; }
-    try { if (await storage.get(`contractor:${regEmail}`)) { alert('⚠️ Email exists'); return; } } catch {}
+
     try {
-      await storage.set(`contractor:${regEmail}`, JSON.stringify({ name: regName, email: regEmail, password: regPwd, fullDayRate: regFullRate, halfDayRate: regHalfRate, createdAt: new Date().toISOString() }));
-      alert('✅ Account created!'); setShowReg(false); setRegName(''); setRegEmail(''); setRegPwd(''); setRegFullRate(''); setRegHalfRate('');
-    } catch { alert('❌ Failed to create account'); }
+      const res = await fetch('/api/production/contractors/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: regName,
+          email: regEmail,
+          password: regPwd,
+          fullDayRate: regFullRate,
+          halfDayRate: regHalfRate,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        alert(`❌ Failed to create account: ${data?.error ?? 'Unknown error'}`);
+        return;
+      }
+
+      alert('✅ Account created!');
+      setShowReg(false);
+      setRegName('');
+      setRegEmail('');
+      setRegPwd('');
+      setRegFullRate('');
+      setRegHalfRate('');
+    } catch (err: any) {
+      alert(`❌ Failed to create account: ${err?.message ?? String(err)}`);
+    }
   };
 
   const handleForgotPwd = async () => {
-    if (!forgotEmail) { alert('⚠️ Enter your email'); return; }
-    try {
-      const r = await storage.get(`contractor:${forgotEmail}`);
-      if (r?.value) {
-        const c = JSON.parse(r.value);
-        setRecoveredPwd(c.password);
-      } else {
-        alert('⚠️ No account found with this email.');
-      }
-    } catch {
-      alert('⚠️ No account found with this email.');
-    }
+    alert('Password reset is not automated yet. Please contact an admin to reset your password.');
   };
 
   const handleALogin = async () => {

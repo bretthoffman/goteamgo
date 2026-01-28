@@ -118,6 +118,7 @@ export async function POST(req: Request, context: Ctx) {
     .update({
       doc_id,
       doc_url,
+      enabled: true,
       ...(reminder_key ? { reminder_key } : {}),
     })
     .eq("event_id", eventId)
