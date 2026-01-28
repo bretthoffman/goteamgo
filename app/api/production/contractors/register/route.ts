@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const password_hash = hashPassword(password);
 
     const { data, error } = await sb
-      .from("production_staffing_portal")
+      .from("production_contractors")
       .insert([
         {
           name,

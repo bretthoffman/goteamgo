@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const password_hash = hashPassword(password);
 
     const { data, error } = await sb
-      .from("production_staffing_portal")
+      .from("production_contractors")
       .select("id, name, email, full_day_rate, half_day_rate")
       .eq("email", email)
       .eq("password_hash", password_hash)
