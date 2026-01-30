@@ -39,12 +39,6 @@ export async function POST(_req: Request, context: Ctx) {
     }
 
     const startAt = new Date(original.start_at);
-    if (startAt.getTime() >= Date.now()) {
-      return NextResponse.json(
-        { error: "Post-event is only for past events" },
-        { status: 400 }
-      );
-    }
 
     if (!isEligibleForPostEvent(original.title)) {
       return NextResponse.json(

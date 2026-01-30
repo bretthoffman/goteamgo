@@ -116,10 +116,6 @@ function isEligibleForPostEvent(title: string): boolean {
   return true;
 }
 
-function isEventInPast(startAt: string): boolean {
-  return new Date(startAt).getTime() < Date.now();
-}
-
 function to24Hour(hour12: number, ampm: "AM" | "PM") {
   const h = hour12 % 12;
   return ampm === "PM" ? h + 12 : h;
@@ -539,8 +535,8 @@ export default function KeapCalendar() {
       let event = data.event as DbEvent;
       const kind = event.event_kind ?? "call";
 
-      // For past call events eligible for post-event, ensure post-event row exists (idempotent)
-      if (kind === "call" && isEventInPast(event.start_at) && isEligibleForPostEvent(event.title)) {
+      // For call events eligible for post-event, ensure post-event row exists (idempotent)
+      if (kind === "call" && isEligibleForPostEvent(event.title)) {
         const ensureRes = await fetch(`/api/keap/events/${eventId}/ensure-post-event`, { method: "POST" });
         const ensureData = await safeJson(ensureRes);
         if (ensureRes.ok && ensureData?.ok) {
@@ -1540,9 +1536,8 @@ export default function KeapCalendar() {
                 })}
                 </div>
 
-                {/* Post-Event? toggle: only for past, eligible call events */}
+                {/* Post-Event? toggle: for eligible call events */}
                 {(editEvent.event_kind ?? "call") === "call" &&
-                  isEventInPast(editEvent.start_at) &&
                   isEligibleForPostEvent(editEvent.title) && (
                   <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                     <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9 }}>Post-Event?</div>
