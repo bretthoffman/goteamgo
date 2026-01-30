@@ -68,7 +68,12 @@ export async function POST(_req: Request, context: Ctx) {
 
     const postTitle = postEventTitleFromOriginal(original.title);
     const endAt = original.end_at ? new Date(original.end_at) : new Date(startAt.getTime() + 60 * 60 * 1000);
-    const postStart = new Date(endAt.getTime() + 60 * 1000);
+    // Clamp post-event to the same calendar day as the original so it's always in the same month view
+    const sameDayEnd = new Date(
+      Date.UTC(startAt.getUTCFullYear(), startAt.getUTCMonth(), startAt.getUTCDate(), 23, 59, 0, 0)
+    );
+    const candidateStart = new Date(endAt.getTime() + 60 * 1000);
+    const postStart = candidateStart.getTime() <= sameDayEnd.getTime() ? candidateStart : sameDayEnd;
     const postEnd = new Date(postStart.getTime() + 30 * 60 * 1000);
 
     const { data: postEvent, error: e1 } = await sb

@@ -19,33 +19,32 @@ export async function GET(req: Request) {
     const { data: rows, error } = await ranged;
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    const all = (rows ?? []) as Array<{
+    const inRange = (rows ?? []) as Array<{
       id: string;
       start_at: string;
       event_kind?: string | null;
       parent_event_id?: string | null;
       post_event_enabled?: boolean | null;
+      post_event_event_id?: string | null;
       [k: string]: unknown;
     }>;
 
-    // Include description_copy events only when their parent has post_event_enabled = true
-    const descriptionCopy = all.filter((e) => (e.event_kind ?? "call") === "description_copy");
-    let allowedPostEventIds = new Set<string>();
-    if (descriptionCopy.length > 0) {
-      const parentIds = [...new Set(descriptionCopy.map((e) => e.parent_event_id).filter(Boolean))] as string[];
-      const { data: parents } = await sb
+    const callEvents = inRange.filter((e) => (e.event_kind ?? "call") === "call");
+    const postEventIdsToFetch = callEvents
+      .filter((e) => e.post_event_enabled && e.post_event_event_id)
+      .map((e) => e.post_event_event_id as string);
+
+    // Fetch post-event rows by id so they show even when their start_at is outside range (e.g. next day)
+    let postEvents: typeof inRange = [];
+    if (postEventIdsToFetch.length > 0) {
+      const { data: postRows } = await sb
         .from("keap_call_events")
-        .select("id")
-        .in("id", parentIds)
-        .eq("post_event_enabled", true);
-      allowedPostEventIds = new Set((parents ?? []).map((p: { id: string }) => p.id));
+        .select("*")
+        .in("id", postEventIdsToFetch);
+      postEvents = (postRows ?? []) as typeof inRange;
     }
 
-    const events = all.filter(
-      (e) =>
-        (e.event_kind ?? "call") === "call" ||
-        ((e.event_kind ?? "call") === "description_copy" && e.parent_event_id && allowedPostEventIds.has(e.parent_event_id))
-    );
+    const events = [...callEvents, ...postEvents];
 
     return NextResponse.json({ events });
   } catch (e: any) {
