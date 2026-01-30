@@ -116,6 +116,15 @@ function isEligibleForPostEvent(title: string): boolean {
   return true;
 }
 
+/** True if the event's calendar day is today or in the past (by local date). */
+function isEventDateTodayOrPast(startAt: string): boolean {
+  const eventD = new Date(startAt);
+  const todayD = new Date();
+  const eventDateOnly = new Date(eventD.getFullYear(), eventD.getMonth(), eventD.getDate()).getTime();
+  const todayDateOnly = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate()).getTime();
+  return eventDateOnly <= todayDateOnly;
+}
+
 function to24Hour(hour12: number, ampm: "AM" | "PM") {
   const h = hour12 % 12;
   return ampm === "PM" ? h + 12 : h;
@@ -1537,9 +1546,10 @@ export default function KeapCalendar() {
                 })}
                 </div>
 
-                {/* Post-Event? toggle: for eligible call events */}
+                {/* Post-Event? toggle: only when event date is today or in the past */}
                 {(editEvent.event_kind ?? "call") === "call" &&
-                  isEligibleForPostEvent(editEvent.title) && (
+                  isEligibleForPostEvent(editEvent.title) &&
+                  isEventDateTodayOrPast(editEvent.start_at) && (
                   <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                     <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9 }}>Post-Event?</div>
                     <label style={{ position: "relative", width: 50, height: 28, display: "inline-block" }}>
