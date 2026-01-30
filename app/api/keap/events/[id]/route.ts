@@ -31,7 +31,7 @@ export async function PATCH(req: Request, context: Ctx) {
   const { id: eventId } = await context.params;
 
   const body = await req.json();
-  const { title, call_type, start_at, end_at, notes, confirmed } = body;
+  const { title, call_type, start_at, end_at, notes, confirmed, post_event_enabled } = body;
 
   const updateData: any = {};
   if (title !== undefined) updateData.title = title;
@@ -40,6 +40,7 @@ export async function PATCH(req: Request, context: Ctx) {
   if (end_at !== undefined) updateData.end_at = end_at;
   if (notes !== undefined) updateData.notes = notes;
   if (confirmed !== undefined) updateData.confirmed = confirmed;
+  if (post_event_enabled !== undefined) updateData.post_event_enabled = post_event_enabled;
 
   const { data, error } = await sb
     .from("keap_call_events")
@@ -56,6 +57,7 @@ export async function DELETE(_req: Request, context: Ctx) {
   const sb = supabaseServer();
   const { id: eventId } = await context.params;
 
+  // Deleting the original event CASCADE-deletes its post-event (parent_event_id FK). Deleting a post-event sets original's post_event_event_id to NULL (ON DELETE SET NULL).
   const { error } = await sb.from("keap_call_events").delete().eq("id", eventId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

@@ -23,6 +23,12 @@ type DbEvent = {
   // Google Doc link (optional until created)
   doc_id?: string | null;
   doc_url?: string | null;
+
+  // Post-event copy review
+  event_kind?: string | null;
+  parent_event_id?: string | null;
+  post_event_enabled?: boolean | null;
+  post_event_event_id?: string | null;
 };
 
 type DbSlot = {
@@ -101,6 +107,17 @@ function defaultTitleForCallType(callType: string) {
   }
 
   return `${trimmed} Call`;
+}
+
+function isEligibleForPostEvent(title: string): boolean {
+  const t = (title || "").trim();
+  if (/^30-30-30\s+call$/i.test(t)) return false;
+  if (/obvio\s+q&a/i.test(t)) return false;
+  return true;
+}
+
+function isEventInPast(startAt: string): boolean {
+  return new Date(startAt).getTime() < Date.now();
 }
 
 function to24Hour(hour12: number, ampm: "AM" | "PM") {
@@ -506,8 +523,8 @@ export default function KeapCalendar() {
     setEditSlots([]);
 
     try {
-      const res = await fetch(`/api/keap/events/${eventId}`, { method: "GET" });
-      const data = await safeJson(res);
+      let res = await fetch(`/api/keap/events/${eventId}`, { method: "GET" });
+      let data = await safeJson(res);
 
       if (!res.ok) {
         setEditBanner(
@@ -519,16 +536,25 @@ export default function KeapCalendar() {
       if (data.__empty) return setEditBanner("✖ Event load failed: empty response body.");
       if (data.__parseError) return setEditBanner(`✖ Event load failed: non-JSON:\n${data.raw?.slice(0, 300)}`);
 
-      const event = data.event as DbEvent;
+      let event = data.event as DbEvent;
+      const kind = event.event_kind ?? "call";
+
+      // For past call events eligible for post-event, ensure post-event row exists (idempotent)
+      if (kind === "call" && isEventInPast(event.start_at) && isEligibleForPostEvent(event.title)) {
+        const ensureRes = await fetch(`/api/keap/events/${eventId}/ensure-post-event`, { method: "POST" });
+        const ensureData = await safeJson(ensureRes);
+        if (ensureRes.ok && ensureData?.ok) {
+          res = await fetch(`/api/keap/events/${eventId}`, { method: "GET" });
+          data = await safeJson(res);
+          if (res.ok && data?.event) event = data.event as DbEvent;
+        }
+      }
+
       setEditEvent(event);
       setEditSlots((data.slots ?? []) as DbSlot[]);
-      
-      // Update confirmed state from event
+
       if (event.confirmed !== undefined && event.confirmed !== null) {
-        setConfirmedById((prev) => ({
-          ...prev,
-          [event.id]: event.confirmed!,
-        }));
+        setConfirmedById((prev) => ({ ...prev, [event.id]: event.confirmed! }));
       }
     } catch (e: any) {
       setEditBanner(`✖ Failed to load event: ${e?.message ?? String(e)}`);
@@ -1129,9 +1155,119 @@ export default function KeapCalendar() {
               </div>
             )}
 
-            {/* Slots */}
+            {/* Slots: Description Copy (single slot) or Reminder Slots (3 slots) */}
             {editEvent && (
               <div style={{ marginTop: 16 }}>
+                {(editEvent.event_kind ?? "call") === "description_copy" ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 10 }}>Description Copy</div>
+                    {editSlots.length === 0 ? (
+                      <div style={{ opacity: 0.7 }}>No slot found.</div>
+                    ) : (
+                      (() => {
+                        const slot = editSlots.find((s) => s.slot_index === 1);
+                        if (!slot) return <div style={{ opacity: 0.7 }}>Slot 1 not found.</div>;
+                        const hasDoc = !!(slot.doc_id && slot.doc_url);
+                        return (
+                          <div
+                            style={{
+                              border: "1px solid rgba(255,255,255,0.12)",
+                              borderRadius: 12,
+                              padding: 12,
+                              maxWidth: 420,
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                              <div style={{ fontSize: 13, fontWeight: 800 }}>Description Copy</div>
+                              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, opacity: hasDoc ? 0.6 : 0.9 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!slot.enabled}
+                                  disabled={hasDoc}
+                                  onChange={async (e) => {
+                                    if (!editEvent || hasDoc) return;
+                                    const enabled = e.target.checked;
+                                    setEditSlots((prev) =>
+                                      prev.map((s) => (s.slot_index === 1 ? { ...s, enabled } : s))
+                                    );
+                                    await fetch(`/api/keap/events/${editEvent.id}/slots/1`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ enabled, offset_minutes: slot.offset_minutes }),
+                                    });
+                                  }}
+                                  style={{ opacity: hasDoc ? 0.5 : 1, cursor: hasDoc ? "not-allowed" : "pointer" }}
+                                />
+                                Enabled
+                              </label>
+                            </div>
+                            {slot.enabled && (
+                              <>
+                                <div style={{ marginTop: 12 }}>
+                                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Google Doc</div>
+                                  {hasDoc ? (
+                                    <div
+                                      onClick={() => window.open(slot.doc_url!, "_blank", "noopener,noreferrer")}
+                                      style={{
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: "white",
+                                        border: "1px solid #d1d5db",
+                                        cursor: "pointer",
+                                        color: "#111",
+                                        fontSize: 13,
+                                      }}
+                                    >
+                                      Open Doc →
+                                    </div>
+                                  ) : (
+                                    <div style={{ border: "1px dashed rgba(255,255,255,0.25)", borderRadius: 12, padding: 12, opacity: 0.8, fontSize: 13 }}>
+                                      No doc linked. Click &quot;Create Doc&quot; below.
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                                  <button
+                                    disabled={hasDoc}
+                                    onClick={async () => {
+                                      if (!editEvent) return;
+                                      setEditBanner("");
+                                      try {
+                                        const res = await fetch(`/api/keap/events/${editEvent.id}/create-description-doc`, { method: "POST" });
+                                        const data = await res.json().catch(() => null);
+                                        if (!res.ok || !data?.ok) {
+                                          setEditBanner(`✖ Create Doc failed: ${data?.error ?? "Unknown error"}`);
+                                          return;
+                                        }
+                                        await openEdit(editEvent.id);
+                                      } catch (err: any) {
+                                        setEditBanner(`✖ Create Doc failed: ${err?.message ?? String(err)}`);
+                                      }
+                                    }}
+                                    style={{
+                                      padding: "10px 14px",
+                                      borderRadius: 10,
+                                      border: "1px solid rgba(255,255,255,0.2)",
+                                      background: hasDoc ? "transparent" : "white",
+                                      color: hasDoc ? "rgba(255,255,255,0.6)" : "#111",
+                                      cursor: hasDoc ? "default" : "pointer",
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    {hasDoc ? "Doc Created" : "Create Doc"}
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()
+                    )}
+                  </>
+                ) : (
+                  <>
                 <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 10 }}>Reminder Slots</div>
 
                 {editSlots.length === 0 && (
@@ -1403,6 +1539,69 @@ export default function KeapCalendar() {
                   );
                 })}
                 </div>
+
+                {/* Post-Event? toggle: only for past, eligible call events */}
+                {(editEvent.event_kind ?? "call") === "call" &&
+                  isEventInPast(editEvent.start_at) &&
+                  isEligibleForPostEvent(editEvent.title) && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.9 }}>Post-Event?</div>
+                    <label style={{ position: "relative", width: 50, height: 28, display: "inline-block" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!editEvent.post_event_enabled}
+                        onChange={async () => {
+                          if (!editEvent) return;
+                          const next = !editEvent.post_event_enabled;
+                          setEditEvent((prev) => (prev ? { ...prev, post_event_enabled: next } : prev));
+                          try {
+                            const res = await fetch(`/api/keap/events/${editEvent.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ post_event_enabled: next }),
+                            });
+                            if (!res.ok) {
+                              const data = await res.json().catch(() => null);
+                              setEditBanner(`✖ Failed to update: ${data?.error ?? "Unknown error"}`);
+                              setEditEvent((prev) => (prev ? { ...prev, post_event_enabled: !next } : prev));
+                              return;
+                            }
+                            await loadRange(rangeStartISO, rangeEndISO);
+                          } catch (err: any) {
+                            setEditBanner(`✖ Failed: ${err?.message ?? String(err)}`);
+                            setEditEvent((prev) => (prev ? { ...prev, post_event_enabled: !next } : prev));
+                          }
+                        }}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          borderRadius: 999,
+                          background: editEvent.post_event_enabled ? "#22c55e" : "#d1d5db",
+                          transition: "background 150ms ease",
+                          border: "1px solid rgba(0,0,0,0.15)",
+                        }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 3,
+                          left: editEvent.post_event_enabled ? 25 : 3,
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          background: "white",
+                          transition: "left 150ms ease",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+                  </>
+                )}
               </div>
             )}
             </div>
