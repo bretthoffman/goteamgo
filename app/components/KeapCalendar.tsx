@@ -379,7 +379,7 @@ export default function KeapCalendar() {
         startISO && endISO
           ? `?start=${encodeURIComponent(startISO)}&end=${encodeURIComponent(endISO)}`
           : "";
-      const res = await fetch(`/api/keap/events${qs}`, { method: "GET" });
+      const res = await fetch(`/api/keap/events${qs}`, { method: "GET", cache: "no-store" });
       const data = await safeJson(res);
 
       if (!res.ok) {
@@ -796,6 +796,7 @@ export default function KeapCalendar() {
       )}
 
       <FullCalendar
+        key={`cal-${events.length}-${events.map((e) => e.id).sort().join(",")}`}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
 
