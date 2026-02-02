@@ -310,6 +310,9 @@ export default function KeapCalendar() {
   const [rangeStartISO, setRangeStartISO] = useState<string | undefined>();
   const [rangeEndISO, setRangeEndISO] = useState<string | undefined>();
 
+  // refresh key: bump only when Post-Event? toggled on so calendar remounts once to show new event (avoids remount on every range change)
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+
   // CREATE modal state
   const [createOpen, setCreateOpen] = useState(false);
   const [draftCallType, setDraftCallType] = useState<(typeof CALL_TYPES)[number]>("Ask Us Anything");
@@ -805,7 +808,7 @@ export default function KeapCalendar() {
       )}
 
       <FullCalendar
-        key={`cal-${events.length}-${events.map((e) => e.id).sort().join(",")}`}
+        key={`cal-refresh-${calendarRefreshKey}`}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
 
@@ -1573,6 +1576,7 @@ export default function KeapCalendar() {
                               return;
                             }
                             await loadRange(rangeStartISO, rangeEndISO);
+                            setCalendarRefreshKey((k) => k + 1);
                           } catch (err: any) {
                             setEditBanner(`✖ Failed: ${err?.message ?? String(err)}`);
                             setEditEvent((prev) => (prev ? { ...prev, post_event_enabled: !next } : prev));
