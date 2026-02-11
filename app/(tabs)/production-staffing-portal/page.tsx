@@ -839,12 +839,12 @@ export default function ProductionStaffingPortal() {
                         "noopener,noreferrer"
                       )
                     }
-                    className="group relative inline-flex items-center justify-center w-40 h-40 rounded-2xl border-2 border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                    className="group relative inline-flex items-center justify-center w-28 h-28 rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 transition-colors"
                   >
-                    <Calendar className="w-20 h-20 text-gray-700" />
+                    <Calendar className="w-14 h-14 text-gray-700" />
                     {/* Hover overlay similar to Keap Calendar's doc preview */}
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-base font-semibold text-gray-800 bg-white/95 px-4 py-1 rounded-full border border-gray-200">
+                      <span className="text-sm font-semibold text-gray-800 bg-white/95 px-3 py-0.5 rounded-full border border-gray-200">
                         View Calendar
                       </span>
                     </div>
