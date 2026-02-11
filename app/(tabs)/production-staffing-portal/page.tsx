@@ -422,10 +422,12 @@ export default function ProductionStaffingPortal() {
   };
 
   const createEvent = async () => {
-    const eventId = editingEventId || `event_${Date.now()}`;
+    // For new events, let Supabase generate the UUID id.
+    // For edits, reuse the existing id from the DB-backed event.
+    const eventId = editingEventId || null;
     const data = { 
       ...newEvent, 
-      id: eventId, 
+      ...(eventId ? { id: eventId } : {}), 
       title: newEvent.title || 'Untitled', 
       startDate: newEvent.startDate || new Date().toISOString().split('T')[0], 
       timeSlots: newEvent.timeSlots.length ? newEvent.timeSlots : [{ callTime: '', start: '', end: '' }], 
