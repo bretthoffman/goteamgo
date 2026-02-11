@@ -828,7 +828,36 @@ export default function ProductionStaffingPortal() {
               </button>
               {showCreateEventPanel && (
               <div className="mt-4 space-y-4">
-                <input type="text" placeholder="Event Title" className="w-full px-4 py-2 border rounded-lg" value={newEvent.title} onChange={(e)=>setNewEvent({...newEvent,title:e.target.value})}/>
+                {/* Small calendar icon button to view Google Calendar */}
+                <div className="mb-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open(
+                        "https://calendar.google.com/calendar/u/0/embed?src=c_afa5ma8b07q7cjtsrulpj0gu3s@group.calendar.google.com&ctz=America/New_York",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    className="group relative inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <Calendar className="w-5 h-5 text-gray-700" />
+                    {/* Hover overlay similar to Keap Calendar's doc preview */}
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] font-semibold text-gray-800 bg-white/95 px-2 py-0.5 rounded-full border border-gray-200">
+                        View Calendar
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Event Title"
+                  className="w-full px-4 py-2 border rounded-lg"
+                  value={newEvent.title}
+                  onChange={(e)=>setNewEvent({...newEvent,title:e.target.value})}
+                />
                 <input type="text" placeholder="Client" className="w-full px-4 py-2 border rounded-lg" value={newEvent.client} onChange={(e)=>setNewEvent({...newEvent,client:e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="block text-sm font-medium mb-1">Start Date</label><input type="date" className="w-full px-4 py-2 border rounded-lg" value={newEvent.startDate} onChange={(e)=>setNewEvent({...newEvent,startDate:e.target.value})}/></div>
