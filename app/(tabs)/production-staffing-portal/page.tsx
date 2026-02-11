@@ -126,6 +126,25 @@ export default function ProductionStaffingPortal() {
     { name: 'Stage Manager', desc: 'Coordinate talent and crew flow.' },
     { name: 'Extra Crew', desc: 'Additional production support.' }
   ];
+
+  const mapDbEventRowToUiEvent = (row: any) => {
+    const base = row.event_json && typeof row.event_json === 'object' ? row.event_json : {};
+    const id = base.id || row.id;
+    const startDate =
+      base.startDate ||
+      row.start_date ||
+      new Date().toISOString().split('T')[0];
+
+    return {
+      ...base,
+      id,
+      title: base.title || row.title || 'Untitled',
+      client: base.client || row.client || '',
+      startDate,
+      endDate: base.endDate || row.end_date || '',
+      location: base.location || row.location || '',
+    };
+  };
   
 
   useEffect(() => {
@@ -134,52 +153,52 @@ export default function ProductionStaffingPortal() {
   
   const init = async () => {
     setLoading(true);
-  
+
     try {
-      const [eventsRes, reqsRes, crewRes] = await Promise.all([
-        storage.get('sage:events'),
+      // Load events from Supabase
+      try {
+        const res = await fetch('/api/production/events');
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.events) {
+          const mapped = data.events
+            .map((row: any) => mapDbEventRowToUiEvent(row))
+            .sort((a: any, b: any) => +new Date(a.startDate) - +new Date(b.startDate));
+          setEvents(mapped);
+        } else {
+          setEvents(DEFAULT_EVENTS_SEED);
+        }
+      } catch (error) {
+        console.error('Error loading events from Supabase:', error);
+        setEvents(DEFAULT_EVENTS_SEED);
+      }
+
+      // Load requests & crew from storage (unchanged)
+      const [reqsRes, crewRes] = await Promise.all([
         storage.get('sage:requests'),
         storage.get('sage:crew_members'),
       ]);
-  
-      // EVENTS
-if (eventsRes?.value) {
-  setEvents(JSON.parse(eventsRes.value).sort((a: any,b: any) => +new Date(a.startDate) - +new Date(b.startDate)));
-} else {
-  setEvents(DEFAULT_EVENTS_SEED);
-  await storage.set("sage:events", JSON.stringify(DEFAULT_EVENTS_SEED));
-}
 
-// REQUESTS
-if (reqsRes?.value) {
-  setRequests(JSON.parse(reqsRes.value).sort((a: any,b: any) => +new Date(b.requestedAt) - +new Date(a.requestedAt)));
-} else {
-  setRequests(DEFAULT_REQUESTS);
-  await storage.set("sage:requests", JSON.stringify(DEFAULT_REQUESTS));
-}
+      if (reqsRes?.value) {
+        setRequests(JSON.parse(reqsRes.value).sort((a: any,b: any) => +new Date(b.requestedAt) - +new Date(a.requestedAt)));
+      } else {
+        setRequests(DEFAULT_REQUESTS);
+        await storage.set("sage:requests", JSON.stringify(DEFAULT_REQUESTS));
+      }
 
-// CREW MEMBERS
-if (crewRes?.value) {
-  setSageCrewMembers(JSON.parse(crewRes.value));
-} else {
-  setSageCrewMembers(DEFAULT_CREW_MEMBERS);
-  await storage.set("sage:crew_members", JSON.stringify(DEFAULT_CREW_MEMBERS));
-}
-      // HARD FAILSAFE
-      setEvents(DEFAULT_EVENTS_SEED);
-      setRequests([]);
-      setSageCrewMembers(['Brian Bethea', 'Carson Brunson']);
+      if (crewRes?.value) {
+        setSageCrewMembers(JSON.parse(crewRes.value));
+      } else {
+        setSageCrewMembers(DEFAULT_CREW_MEMBERS);
+        await storage.set("sage:crew_members", JSON.stringify(DEFAULT_CREW_MEMBERS));
+      }
     } catch (error) {
       console.error('Error initializing:', error);
       setEvents(DEFAULT_EVENTS_SEED);
       setRequests(DEFAULT_REQUESTS);
       setSageCrewMembers(DEFAULT_CREW_MEMBERS);
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
-  
-    setLoading(false);
   };
 
   const handleCLogin = async () => {
@@ -298,18 +317,33 @@ if (crewRes?.value) {
 
   const loadEvents = async () => { 
     try { 
-      const r = await storage.get('sage:events'); 
-      if (r?.value) setEvents(JSON.parse(r.value).sort((a: any,b: any) => +new Date(a.startDate) - +new Date(b.startDate))); 
-      else setEvents([]);
+      const res = await fetch('/api/production/events');
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.events) {
+        const mapped = data.events
+          .map((row: any) => mapDbEventRowToUiEvent(row))
+          .sort((a: any,b: any) => +new Date(a.startDate) - +new Date(b.startDate));
+        setEvents(mapped);
+      } else {
+        setEvents([]);
+      }
     } catch (error) { 
+      console.error('loadEvents error:', error);
       setEvents([]); 
     } 
   };
   
   const saveEvents = async (list: any[]) => { 
     try { 
-      await storage.set('sage:events', JSON.stringify(list)); 
-      setEvents(list); 
+      // Upsert each event, then reload from server for a canonical view
+      for (const ev of list) {
+        await fetch('/api/production/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ev),
+        });
+      }
+      await loadEvents();
     } catch (error) { 
       console.error('Save error:', error);
       throw error; 
@@ -400,10 +434,12 @@ if (crewRes?.value) {
       sageCrew: newEvent.sageCrew || []
     };
     try {
-      const updated = editingEventId 
-        ? events.map(e => e.id === editingEventId ? data : e)
-        : [...events, data];
-      await saveEvents(updated);
+      await fetch('/api/production/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      await loadEvents();
       setNewEvent({ 
         title: '', 
         startDate: '', 
@@ -525,7 +561,13 @@ if (crewRes?.value) {
         pos.staff = pos.staff || [];
         pos.staff.push({ name: req.contractorName, email: req.contractorEmail, dayRate: req.contractorDayRate, totalHours: req.totalHours, rateType: req.rateType, approvedAt: new Date().toISOString() });
         pos.filled = pos.staff.length;
-        await saveEvents(updEvts);
+        // Persist the single updated event
+        await fetch('/api/production/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updEvts[eIdx]),
+        });
+        setEvents(updEvts);
       }
       alert('✅ Approved!');
     } catch { alert('❌ Failed'); }
@@ -538,7 +580,13 @@ if (crewRes?.value) {
 
   const delEvent = async (id: string) => {
     if (!confirm('⚠️ Delete event?')) return;
-    try { await saveEvents(events.filter(e => e.id !== id)); alert('✅ Deleted!'); } catch { alert('❌ Failed'); }
+    try {
+      await fetch(`/api/production/events/${id}`, { method: 'DELETE' });
+      await loadEvents();
+      alert('✅ Deleted!');
+    } catch {
+      alert('❌ Failed');
+    }
   };
 
   const pending = requests.filter(r => r.status === 'pending');
