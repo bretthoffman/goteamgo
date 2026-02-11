@@ -117,6 +117,7 @@ export default function ProductionStaffingPortal() {
   const [showAddCrewMember, setShowAddCrewMember] = useState(false);
   const [newCrewMemberName, setNewCrewMemberName] = useState('');
   const [editingEventId, setEditingEventId] = useState(null);
+  const [showCreateEventPanel, setShowCreateEventPanel] = useState(false);
 
   const roles = [
     { name: 'Zoom Op', desc: 'Operate PTZ cameras and manage zoom controls.' },
@@ -617,6 +618,12 @@ export default function ProductionStaffingPortal() {
         pos.staff = pos.staff || [];
         pos.staff.push({ name: req.contractorName, email: req.contractorEmail, dayRate: req.contractorDayRate, totalHours: req.totalHours, rateType: req.rateType, approvedAt: new Date().toISOString() });
         pos.filled = pos.staff.length;
+        // Also reflect approved contractor in Sage Crew section for this event
+        const currentCrew = Array.isArray(updEvts[eIdx].sageCrew) ? updEvts[eIdx].sageCrew : [];
+        updEvts[eIdx].sageCrew = [
+          ...currentCrew,
+          { name: req.contractorName, role: req.positionRole },
+        ];
         // Persist the single updated event
         await fetch('/api/production/events', {
           method: 'POST',
@@ -796,20 +803,31 @@ export default function ProductionStaffingPortal() {
             </div>
 
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">
-                  {editingEventId ? 'Edit Event' : 'Create Event'}
-                </h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateEventPanel((v) => !v)}
+                className="w-full flex items-center justify-between mb-1 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-gray-300 text-gray-600 text-xs">
+                    {showCreateEventPanel ? '▾' : '▸'}
+                  </span>
+                  <h2 className="text-xl font-bold">
+                    {editingEventId ? 'Edit Event' : 'Create Event'}
+                  </h2>
+                </div>
                 {editingEventId && (
                   <button 
-                    onClick={cancelEdit}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
+                    className="px-4 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs border border-gray-300"
                   >
                     Cancel Edit
                   </button>
                 )}
-              </div>
-              <div className="space-y-4">
+              </button>
+              {showCreateEventPanel && (
+              <div className="mt-4 space-y-4">
                 <input type="text" placeholder="Event Title" className="w-full px-4 py-2 border rounded-lg" value={newEvent.title} onChange={(e)=>setNewEvent({...newEvent,title:e.target.value})}/>
                 <input type="text" placeholder="Client" className="w-full px-4 py-2 border rounded-lg" value={newEvent.client} onChange={(e)=>setNewEvent({...newEvent,client:e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
@@ -863,6 +881,7 @@ export default function ProductionStaffingPortal() {
                   {editingEventId ? 'Update Event' : 'Create Event'}
                 </button>
               </div>
+              )}
             </div>
 
             {pending.length>0 && (
