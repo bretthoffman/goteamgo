@@ -608,16 +608,28 @@ export default function ProductionStaffingPortal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updReq),
       });
-      const updReqs = requests.map(r => r.id === req.id ? updReq : r);
-      setRequests(updReqs);
 
-      const eIdx = events.findIndex(e => e.id === req.eventId);
+      // Update local requests with this approved request
+      let updatedRequests = requests.map((r) => (r.id === req.id ? updReq : r));
+      setRequests(updatedRequests);
+
+      const eIdx = events.findIndex((e) => e.id === req.eventId);
+      let positionNowFull = false;
+
       if (eIdx !== -1) {
         const updEvts = [...events];
         const pos = updEvts[eIdx].positions[req.positionIndex];
         pos.staff = pos.staff || [];
-        pos.staff.push({ name: req.contractorName, email: req.contractorEmail, dayRate: req.contractorDayRate, totalHours: req.totalHours, rateType: req.rateType, approvedAt: new Date().toISOString() });
+        pos.staff.push({
+          name: req.contractorName,
+          email: req.contractorEmail,
+          dayRate: req.contractorDayRate,
+          totalHours: req.totalHours,
+          rateType: req.rateType,
+          approvedAt: new Date().toISOString(),
+        });
         pos.filled = pos.staff.length;
+        positionNowFull = pos.filled >= pos.count;
         // Also reflect approved contractor in Sage Crew section for this event
         const currentCrew = Array.isArray(updEvts[eIdx].sageCrew) ? updEvts[eIdx].sageCrew : [];
         updEvts[eIdx].sageCrew = [
@@ -632,8 +644,49 @@ export default function ProductionStaffingPortal() {
         });
         setEvents(updEvts);
       }
+
+      // If this position is now fully staffed, automatically reject any
+      // other pending requests for the same event + position.
+      if (positionNowFull) {
+        const conflicting = updatedRequests.filter(
+          (r) =>
+            r.id !== req.id &&
+            r.status === 'pending' &&
+            r.eventId === req.eventId &&
+            r.positionIndex === req.positionIndex
+        );
+
+        if (conflicting.length > 0) {
+          const rejectedUpdates: any[] = [];
+
+          for (const other of conflicting) {
+            const rejectedReq = { ...other, status: 'rejected' };
+            try {
+              await fetch('/api/production/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rejectedReq),
+              });
+              rejectedUpdates.push(rejectedReq);
+            } catch (err) {
+              console.error('Failed to auto-reject conflicting request', err);
+            }
+          }
+
+          if (rejectedUpdates.length > 0) {
+            updatedRequests = updatedRequests.map((r) => {
+              const override = rejectedUpdates.find((u) => u.id === r.id);
+              return override ? override : r;
+            });
+            setRequests(updatedRequests);
+          }
+        }
+      }
+
       alert('✅ Approved!');
-    } catch { alert('❌ Failed'); }
+    } catch {
+      alert('❌ Failed');
+    }
   };
 
   const reject = async (req: any) => {
