@@ -971,9 +971,12 @@ export default function ProductionStaffingPortal() {
                 <h2 className="text-xl font-bold mb-4">Pending Requests ({pending.length})</h2>
                 <div className="space-y-3">{pending.map(r=>(
                   <div key={r.id} className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div><h3 className="font-semibold">{r.eventTitle}</h3><p className="text-sm text-gray-600">{r.positionRole} - {r.contractorName}</p><p className="text-sm text-gray-600">{r.contractorEmail}</p><p className="text-sm text-gray-600">Total Hours: {r.totalHours?.toFixed(1)} ({r.rateType})</p><p className="text-sm font-semibold text-green-700">${r.contractorDayRate} ({r.rateType})</p></div>
-                      <div className="flex gap-2"><button onClick={()=>approve(r)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-1"><Check className="w-4 h-4"/>Approve</button><button onClick={()=>reject(r)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm flex items-center gap-1"><X className="w-4 h-4"/>Reject</button></div>
+                    <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
+                      <div className="min-w-0"><h3 className="font-semibold">{r.eventTitle}</h3><p className="text-sm text-gray-600">{r.positionRole} - {r.contractorName}</p><p className="text-sm text-gray-600">{r.contractorEmail}</p><p className="text-sm text-gray-600">Total Hours: {r.totalHours?.toFixed(1)} ({r.rateType})</p><p className="text-sm font-semibold text-green-700">${r.contractorDayRate} ({r.rateType})</p></div>
+                      <div className="flex flex-col gap-2 shrink-0 self-end md:self-auto md:flex-row md:gap-2">
+                        <button onClick={()=>approve(r)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center justify-center gap-1 w-full min-w-[120px] md:w-auto md:min-w-0"><Check className="w-4 h-4 shrink-0"/>Approve</button>
+                        <button onClick={()=>reject(r)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm flex items-center justify-center gap-1 w-full min-w-[120px] md:w-auto md:min-w-0"><X className="w-4 h-4 shrink-0"/>Reject</button>
+                      </div>
                     </div>
                   </div>
                 ))}</div>
