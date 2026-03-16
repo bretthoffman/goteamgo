@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import SageLogo from "@/app/components/SageLogo";
 
@@ -27,6 +27,7 @@ export default function ActionTestPage() {
   const [filteredActions, setFilteredActions] = useState<ActionRecord[]>([]);
 
   const actions = useQuery(api.actions.listAll) as ActionRecord[] | undefined;
+  const updateAction = useMutation(api.actions.updateActionByActionId);
 
   const handlePasswordSubmit = () => {
     if (password === ACTION_TEST_PASSWORD) {
@@ -76,6 +77,7 @@ export default function ActionTestPage() {
     selectedEventType !== null;
 
   const baseActions = actions ?? [];
+  const [hasPulled, setHasPulled] = useState(false);
 
   const filteredForModule = baseActions;
 
@@ -157,10 +159,8 @@ export default function ActionTestPage() {
     return Array.from(set).sort();
   }, [filteredForEventType]);
 
-  const handlePull = () => {
-    if (!hasAllSelections) return;
-
-    const next = baseActions.filter((a: any) => {
+  const computeFiltered = (source: ActionRecord[]) => {
+    return source.filter((a: any) => {
       if (selectedModule && selectedModule !== ALL_VALUE) {
         if (a.module !== selectedModule) return false;
       }
@@ -179,8 +179,13 @@ export default function ActionTestPage() {
       }
       return true;
     });
+  };
 
+  const handlePull = () => {
+    if (!hasAllSelections) return;
+    const next = computeFiltered(baseActions);
     setFilteredActions(next);
+    setHasPulled(true);
   };
 
   const handleClear = () => {
@@ -190,10 +195,21 @@ export default function ActionTestPage() {
     setSelectedEventPhase(null);
     setSelectedEventType(null);
     setFilteredActions([]);
+    setHasPulled(false);
   };
 
   const [selectedForModal, setSelectedForModal] =
     useState<ActionRecord | null>(null);
+  const [editingAction, setEditingAction] =
+    useState<ActionRecord | null>(null);
+
+  // When underlying actions change (e.g. after an edit), refresh results
+  useEffect(() => {
+    if (hasPulled && hasAllSelections) {
+      const next = computeFiltered(baseActions);
+      setFilteredActions(next);
+    }
+  }, [baseActions, hasPulled, hasAllSelections]);
 
   if (!isAuthenticated) {
     return (
@@ -369,6 +385,14 @@ export default function ActionTestPage() {
                         {action.ownerRoles.join(", ")}
                       </div>
                     )}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={() => setEditingAction(action)}
+                      className="px-3 py-1 rounded-lg border border-slate-600 text-xs text-slate-100 hover:bg-slate-700/70 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -395,6 +419,19 @@ export default function ActionTestPage() {
             value={selectedForModal.openQuestions}
           />
         </Modal>
+      )}
+
+      {editingAction && (
+        <EditActionModal
+          action={editingAction}
+          allActions={baseActions}
+          onClose={() => setEditingAction(null)}
+          onSaved={() => {
+            setEditingAction(null);
+            // results will refresh via useEffect when Convex data updates
+          }}
+          updateAction={updateAction}
+        />
       )}
     </main>
   );
@@ -493,4 +530,500 @@ function ModalSection({ label, value }: ModalSectionProps) {
     </div>
   );
 }
+
+type EditActionModalProps = {
+  action: ActionRecord;
+  allActions: ActionRecord[];
+  onClose: () => void;
+  onSaved: () => void;
+  updateAction: (args: {
+    actionId: string;
+    name: string;
+    description: string;
+    block: string;
+    eventPhase: string;
+    eventTypes: string[];
+    ownerRoles: string[];
+  }) => Promise<unknown>;
+};
+
+function EditActionModal({
+  action,
+  allActions,
+  onClose,
+  onSaved,
+  updateAction,
+}: EditActionModalProps) {
+  const original = useMemo(
+    () => ({
+      name: action.name || "",
+      description: action.description || "",
+      block: action.block || "",
+      eventPhase: action.eventPhase || "",
+      eventTypes: Array.isArray(action.eventTypes)
+        ? [...action.eventTypes]
+        : [],
+      ownerRoles: Array.isArray(action.ownerRoles)
+        ? [...action.ownerRoles]
+        : [],
+    }),
+    [action]
+  );
+
+  const [name, setName] = useState(original.name);
+  const [description, setDescription] = useState(original.description);
+  const [block, setBlock] = useState(original.block);
+  const [eventPhase, setEventPhase] = useState(original.eventPhase);
+  const [eventTypes, setEventTypes] = useState<string[]>(original.eventTypes);
+  const [ownerRoles, setOwnerRoles] = useState<string[]>(original.ownerRoles);
+
+  const [editingName, setEditingName] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  const [pendingRemoveOwner, setPendingRemoveOwner] = useState<string | null>(
+    null
+  );
+  const [pendingRemoveEventType, setPendingRemoveEventType] = useState<
+    string | null
+  >(null);
+
+  const [ownerSearchOpen, setOwnerSearchOpen] = useState(false);
+  const [ownerSearch, setOwnerSearch] = useState("");
+  const [eventTypeSearchOpen, setEventTypeSearchOpen] = useState(false);
+  const [eventTypeSearch, setEventTypeSearch] = useState("");
+
+  const isDirty =
+    name !== original.name ||
+    description !== original.description ||
+    block !== original.block ||
+    eventPhase !== original.eventPhase ||
+    JSON.stringify(eventTypes) !== JSON.stringify(original.eventTypes) ||
+    JSON.stringify(ownerRoles) !== JSON.stringify(original.ownerRoles);
+
+  const blockOptions = useMemo(() => {
+    const set = new Set<string>();
+    allActions.forEach((a: any) => {
+      if (a.workflow === action.workflow && a.block) {
+        set.add(a.block);
+      }
+    });
+    return Array.from(set).sort();
+  }, [allActions, action.workflow]);
+
+  const allOwnerRoleOptions = useMemo(() => {
+    const set = new Set<string>();
+    allActions.forEach((a: any) => {
+      if (Array.isArray(a.ownerRoles)) {
+        a.ownerRoles.forEach((r: string) => {
+          if (r) set.add(r);
+        });
+      }
+    });
+    return Array.from(set).sort();
+  }, [allActions]);
+
+  const allEventTypeOptions = useMemo(() => {
+    const set = new Set<string>();
+    allActions.forEach((a: any) => {
+      if (Array.isArray(a.eventTypes)) {
+        a.eventTypes.forEach((t: string) => {
+          if (t) set.add(t);
+        });
+      }
+    });
+    return Array.from(set).sort();
+  }, [allActions]);
+
+  const allEventPhaseOptions = useMemo(() => {
+    const set = new Set<string>();
+    allActions.forEach((a: any) => {
+      if (a.eventPhase) set.add(a.eventPhase);
+    });
+    return Array.from(set).sort();
+  }, [allActions]);
+
+  const filteredOwnerOptions = allOwnerRoleOptions.filter(
+    (opt) =>
+      !ownerRoles.includes(opt) &&
+      opt.toLowerCase().includes(ownerSearch.toLowerCase())
+  );
+
+  const filteredEventTypeOptions = allEventTypeOptions.filter(
+    (opt) =>
+      !eventTypes.includes(opt) &&
+      opt.toLowerCase().includes(eventTypeSearch.toLowerCase())
+  );
+
+  const requestClose = () => {
+    if (!isDirty) {
+      onClose();
+    } else {
+      setShowDiscardConfirm(true);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (!action.actionId) return;
+    await updateAction({
+      actionId: action.actionId,
+      name,
+      description,
+      block,
+      eventPhase,
+      eventTypes,
+      ownerRoles,
+    });
+    setShowSaveConfirm(false);
+    onSaved();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="relative max-w-3xl w-full mx-4 rounded-lg bg-slate-950 border border-slate-700 p-5">
+        <button
+          onClick={requestClose}
+          className="absolute top-3 right-3 text-xs px-2 py-1 rounded-md bg-red-600 text-white hover:bg-red-700"
+        >
+          X
+        </button>
+
+        <div className="space-y-4 text-sm text-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Block */}
+            <div>
+              <div className="text-xs font-semibold mb-1">Block</div>
+              <select
+                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={block}
+                onChange={(e) => setBlock(e.target.value)}
+              >
+                {blockOptions.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Event Phase */}
+            <div>
+              <div className="text-xs font-semibold mb-1">Event Phase</div>
+              <select
+                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={eventPhase}
+                onChange={(e) => setEventPhase(e.target.value)}
+              >
+                {allEventPhaseOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Event Types */}
+            <div>
+              <div className="text-xs font-semibold mb-1">Event Types</div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {eventTypes.map((t) => (
+                  <div
+                    key={t}
+                    className="relative px-2 py-1 border border-slate-500 rounded-full text-xs flex items-center gap-2"
+                  >
+                    <span>{t}</span>
+                    <button
+                      className="text-[10px] text-red-400"
+                      onClick={() => setPendingRemoveEventType(t)}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="w-7 h-7 border border-dashed border-slate-500 rounded flex items-center justify-center text-sm text-slate-200"
+                  onClick={() => {
+                    setEventTypeSearchOpen(true);
+                    setEventTypeSearch("");
+                  }}
+                >
+                  +
+                </button>
+              </div>
+              {eventTypeSearchOpen && (
+                <div className="mt-1 border border-slate-700 rounded-lg bg-slate-900 p-2 space-y-2">
+                  <input
+                    className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs"
+                    placeholder="Search event types..."
+                    value={eventTypeSearch}
+                    onChange={(e) => setEventTypeSearch(e.target.value)}
+                    onBlur={() => {
+                      // collapse on blur if nothing chosen
+                      setEventTypeSearchOpen(false);
+                    }}
+                  />
+                  <div className="max-h-40 overflow-y-auto text-xs">
+                    {filteredEventTypeOptions.length === 0 ? (
+                      <div className="text-slate-400">No matches found</div>
+                    ) : (
+                      filteredEventTypeOptions.map((opt) => (
+                        <button
+                          key={opt}
+                          className="block w-full text-left px-2 py-1 rounded hover:bg-slate-800"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setEventTypes((prev) =>
+                              prev.includes(opt) ? prev : [...prev, opt]
+                            );
+                            setEventTypeSearchOpen(false);
+                            setEventTypeSearch("");
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Name and Description */}
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs font-semibold mb-1">Action Name</div>
+              {editingName ? (
+                <input
+                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setEditingName(false)}
+                  autoFocus
+                />
+              ) : (
+                <button
+                  className="w-full text-left px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 hover:bg-slate-800"
+                  onClick={() => setEditingName(true)}
+                >
+                  {name || <span className="text-slate-500">Click to edit</span>}
+                </button>
+              )}
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold mb-1">
+                Action Description
+              </div>
+              {editingDescription ? (
+                <textarea
+                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm min-h-[80px]"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onBlur={() => setEditingDescription(false)}
+                />
+              ) : (
+                <button
+                  className="w-full text-left px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-100 hover:bg-slate-800"
+                  onClick={() => setEditingDescription(true)}
+                >
+                  {description || (
+                    <span className="text-slate-500">Click to edit</span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Owner Roles */}
+          <div>
+            <div className="text-xs font-semibold mb-1">Owner Roles</div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {ownerRoles.map((r) => (
+                <div
+                  key={r}
+                  className="relative px-2 py-1 border border-slate-500 rounded-full text-xs flex items-center gap-2"
+                >
+                  <span>{r}</span>
+                  <button
+                    className="text-[10px] text-red-400"
+                    onClick={() => setPendingRemoveOwner(r)}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+              <button
+                className="w-7 h-7 border border-dashed border-slate-500 rounded flex items-center justify-center text-sm text-slate-200"
+                onClick={() => {
+                  setOwnerSearchOpen(true);
+                  setOwnerSearch("");
+                }}
+              >
+                +
+              </button>
+            </div>
+            {ownerSearchOpen && (
+              <div className="mt-1 border border-slate-700 rounded-lg bg-slate-900 p-2 space-y-2">
+                <input
+                  className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs"
+                  placeholder="Search owners..."
+                  value={ownerSearch}
+                  onChange={(e) => setOwnerSearch(e.target.value)}
+                  onBlur={() => {
+                    setOwnerSearchOpen(false);
+                  }}
+                />
+                <div className="max-h-40 overflow-y-auto text-xs">
+                  {filteredOwnerOptions.length === 0 ? (
+                    <div className="text-slate-400">No matches found</div>
+                  ) : (
+                    filteredOwnerOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        className="block w-full text-left px-2 py-1 rounded hover:bg-slate-800"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setOwnerRoles((prev) =>
+                            prev.includes(opt) ? prev : [...prev, opt]
+                          );
+                          setOwnerSearchOpen(false);
+                          setOwnerSearch("");
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom buttons */}
+          <div className="flex justify-between items-center pt-2">
+            <button
+              className="px-4 py-2 rounded-lg border border-slate-600 text-sm text-slate-100 hover:bg-slate-800"
+              onClick={requestClose}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white disabled:bg-slate-600 disabled:text-slate-300"
+              onClick={() => setShowSaveConfirm(true)}
+              disabled={!isDirty}
+            >
+              Confirm Changes
+            </button>
+          </div>
+        </div>
+
+        {/* Discard confirmation */}
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+            <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 max-w-sm w-full space-y-3 text-sm">
+              <div>Discard unsaved changes?</div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-3 py-1 rounded-lg border border-slate-600 text-slate-100 text-xs"
+                  onClick={() => setShowDiscardConfirm(false)}
+                >
+                  No
+                </button>
+                <button
+                  className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs hover:bg-red-700"
+                  onClick={onClose}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save confirmation */}
+        {showSaveConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+            <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 max-w-sm w-full space-y-3 text-sm">
+              <div>Are you sure you want to confirm these changes?</div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-3 py-1 rounded-lg border border-slate-600 text-slate-100 text-xs"
+                  onClick={() => setShowSaveConfirm(false)}
+                >
+                  No
+                </button>
+                <button
+                  className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700"
+                  onClick={handleConfirmSave}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Owner delete confirmation */}
+        {pendingRemoveOwner && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+            <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 max-w-sm w-full space-y-3 text-sm">
+              <div>Are you sure you want to delete this owner?</div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-3 py-1 rounded-lg border border-slate-600 text-slate-100 text-xs"
+                  onClick={() => setPendingRemoveOwner(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs hover:bg-red-700"
+                  onClick={() => {
+                    setOwnerRoles((prev) =>
+                      prev.filter((r) => r !== pendingRemoveOwner)
+                    );
+                    setPendingRemoveOwner(null);
+                  }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Event type delete confirmation */}
+        {pendingRemoveEventType && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+            <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 max-w-sm w-full space-y-3 text-sm">
+              <div>Are you sure you want to delete this event type?</div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-3 py-1 rounded-lg border border-slate-600 text-slate-100 text-xs"
+                  onClick={() => setPendingRemoveEventType(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs hover:bg-red-700"
+                  onClick={() => {
+                    setEventTypes((prev) =>
+                      prev.filter((t) => t !== pendingRemoveEventType)
+                    );
+                    setPendingRemoveEventType(null);
+                  }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 

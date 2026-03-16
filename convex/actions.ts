@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 
 export const listAll = query({
   args: {},
@@ -45,5 +45,31 @@ export const getByPhase = query({
       .query("actions")
       .withIndex("by_phase", (q) => q.eq("eventPhase", args.eventPhase))
       .collect();
+  },
+});
+
+export const updateActionByActionId = mutation({
+  args: {
+    actionId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    block: v.string(),
+    eventPhase: v.string(),
+    eventTypes: v.array(v.string()),
+    ownerRoles: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { actionId, ...fields } = args;
+
+    const existing = await ctx.db
+      .query("actions")
+      .withIndex("by_action_id", (q) => q.eq("actionId", actionId))
+      .unique();
+
+    if (!existing?._id) {
+      throw new Error("Action not found");
+    }
+
+    await ctx.db.patch(existing._id, fields);
   },
 });
