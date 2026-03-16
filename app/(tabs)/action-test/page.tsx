@@ -24,6 +24,15 @@ export default function ActionTestPage() {
     null
   );
 
+  // Snapshot of filters that were last applied via Pull
+  const [appliedModule, setAppliedModule] = useState<string | null>(null);
+  const [appliedWorkflow, setAppliedWorkflow] = useState<string | null>(null);
+  const [appliedBlock, setAppliedBlock] = useState<string | null>(null);
+  const [appliedEventPhase, setAppliedEventPhase] = useState<string | null>(
+    null
+  );
+  const [appliedEventType, setAppliedEventType] = useState<string | null>(null);
+
   const [filteredActions, setFilteredActions] = useState<ActionRecord[]>([]);
 
   const actions = useQuery(api.actions.listAll) as ActionRecord[] | undefined;
@@ -75,6 +84,13 @@ export default function ActionTestPage() {
     selectedBlock !== null &&
     selectedEventPhase !== null &&
     selectedEventType !== null;
+
+  const hasAllAppliedSelections =
+    appliedModule !== null &&
+    appliedWorkflow !== null &&
+    appliedBlock !== null &&
+    appliedEventPhase !== null &&
+    appliedEventType !== null;
 
   const baseActions = actions ?? [];
   const [hasPulled, setHasPulled] = useState(false);
@@ -159,23 +175,38 @@ export default function ActionTestPage() {
     return Array.from(set).sort();
   }, [filteredForEventType]);
 
-  const computeFiltered = (source: ActionRecord[]) => {
+  const computeFiltered = (
+    source: ActionRecord[],
+    {
+      module,
+      workflow,
+      block,
+      eventPhase,
+      eventType,
+    }: {
+      module: string | null;
+      workflow: string | null;
+      block: string | null;
+      eventPhase: string | null;
+      eventType: string | null;
+    }
+  ) => {
     return source.filter((a: any) => {
-      if (selectedModule && selectedModule !== ALL_VALUE) {
-        if (a.module !== selectedModule) return false;
+      if (module && module !== ALL_VALUE) {
+        if (a.module !== module) return false;
       }
-      if (selectedWorkflow && selectedWorkflow !== ALL_VALUE) {
-        if (a.workflow !== selectedWorkflow) return false;
+      if (workflow && workflow !== ALL_VALUE) {
+        if (a.workflow !== workflow) return false;
       }
-      if (selectedBlock && selectedBlock !== ALL_VALUE) {
-        if (a.block !== selectedBlock) return false;
+      if (block && block !== ALL_VALUE) {
+        if (a.block !== block) return false;
       }
-      if (selectedEventPhase && selectedEventPhase !== ALL_VALUE) {
-        if (a.eventPhase !== selectedEventPhase) return false;
+      if (eventPhase && eventPhase !== ALL_VALUE) {
+        if (a.eventPhase !== eventPhase) return false;
       }
-      if (selectedEventType && selectedEventType !== ALL_VALUE) {
+      if (eventType && eventType !== ALL_VALUE) {
         if (!Array.isArray(a.eventTypes)) return false;
-        if (!a.eventTypes.includes(selectedEventType)) return false;
+        if (!a.eventTypes.includes(eventType)) return false;
       }
       return true;
     });
@@ -183,7 +214,20 @@ export default function ActionTestPage() {
 
   const handlePull = () => {
     if (!hasAllSelections) return;
-    const next = computeFiltered(baseActions);
+    // Snapshot current selections as the applied filters
+    setAppliedModule(selectedModule);
+    setAppliedWorkflow(selectedWorkflow);
+    setAppliedBlock(selectedBlock);
+    setAppliedEventPhase(selectedEventPhase);
+    setAppliedEventType(selectedEventType);
+
+    const next = computeFiltered(baseActions, {
+      module: selectedModule,
+      workflow: selectedWorkflow,
+      block: selectedBlock,
+      eventPhase: selectedEventPhase,
+      eventType: selectedEventType,
+    });
     setFilteredActions(next);
     setHasPulled(true);
   };
@@ -195,6 +239,11 @@ export default function ActionTestPage() {
     setSelectedEventPhase(null);
     setSelectedEventType(null);
     setFilteredActions([]);
+    setAppliedModule(null);
+    setAppliedWorkflow(null);
+    setAppliedBlock(null);
+    setAppliedEventPhase(null);
+    setAppliedEventType(null);
     setHasPulled(false);
   };
 
@@ -204,12 +253,28 @@ export default function ActionTestPage() {
     useState<ActionRecord | null>(null);
 
   // When underlying actions change (e.g. after an edit), refresh results
+  // using the last-applied filters, without reacting to pending dropdown changes.
   useEffect(() => {
-    if (hasPulled && hasAllSelections) {
-      const next = computeFiltered(baseActions);
+    if (hasPulled && hasAllAppliedSelections) {
+      const next = computeFiltered(baseActions, {
+        module: appliedModule,
+        workflow: appliedWorkflow,
+        block: appliedBlock,
+        eventPhase: appliedEventPhase,
+        eventType: appliedEventType,
+      });
       setFilteredActions(next);
     }
-  }, [baseActions, hasPulled, hasAllSelections]);
+  }, [
+    baseActions,
+    hasPulled,
+    hasAllAppliedSelections,
+    appliedModule,
+    appliedWorkflow,
+    appliedBlock,
+    appliedEventPhase,
+    appliedEventType,
+  ]);
 
   if (!isAuthenticated) {
     return (
@@ -947,7 +1012,7 @@ function EditActionModal({
         {showSaveConfirm && (
           <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
             <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 max-w-sm w-full space-y-3 text-sm">
-              <div>Are you sure you want to confirm these changes?</div>
+              <div>This will edit the database. Are you sure?</div>
               <div className="flex justify-end gap-2">
                 <button
                   className="px-3 py-1 rounded-lg border border-slate-600 text-slate-100 text-xs"
