@@ -38,7 +38,7 @@ export default function ActionTestPage() {
     }
   };
 
-  const handleModuleChange = (value: string) => {
+  const handleModuleChange = (value: string | null) => {
     setSelectedModule(value);
     setSelectedWorkflow(null);
     setSelectedBlock(null);
@@ -46,25 +46,25 @@ export default function ActionTestPage() {
     setSelectedEventType(null);
   };
 
-  const handleWorkflowChange = (value: string) => {
+  const handleWorkflowChange = (value: string | null) => {
     setSelectedWorkflow(value);
     setSelectedBlock(null);
     setSelectedEventPhase(null);
     setSelectedEventType(null);
   };
 
-  const handleBlockChange = (value: string) => {
+  const handleBlockChange = (value: string | null) => {
     setSelectedBlock(value);
     setSelectedEventPhase(null);
     setSelectedEventType(null);
   };
 
-  const handleEventPhaseChange = (value: string) => {
+  const handleEventPhaseChange = (value: string | null) => {
     setSelectedEventPhase(value);
     setSelectedEventType(null);
   };
 
-  const handleEventTypeChange = (value: string) => {
+  const handleEventTypeChange = (value: string | null) => {
     setSelectedEventType(value);
   };
 
@@ -405,16 +405,16 @@ type DropdownProps = {
   options: string[];
   disabled: boolean;
   value: string | null;
-  onChange: (value: string) => void;
+  onChange: (value: string | null) => void;
 };
 
 function Dropdown({ label, options, disabled, value, onChange }: DropdownProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value || null;
-    if (v === "") {
-      onChange("");
+    const raw = e.target.value;
+    if (raw === "") {
+      onChange(null);
     } else {
-      onChange(v);
+      onChange(raw);
     }
   };
 
